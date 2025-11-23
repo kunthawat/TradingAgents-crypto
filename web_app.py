@@ -156,6 +156,12 @@ def health_check():
 @app.route('/api/start_analysis', methods=['POST'])
 def start_analysis():
     data = request.json
+    
+    # Validate secret password
+    secret_pass = os.getenv('SECRET_PASS')
+    if not secret_pass or data.get('secret_pass') != secret_pass:
+        return jsonify({'error': 'Invalid password'}), 401
+    
     session_id = data.get('session_id', str(int(time.time())))
     
     # Store analysis configuration
@@ -186,16 +192,15 @@ def run_analysis_background(session_id: str, config: Dict):
         
         buffer = analysis_sessions[session_id]['buffer']
         buffer.add_message("System", f"Initializing analysis for {config['ticker']}...")
-        # Update configuration based on user selections
+        # Update configuration based on user selections (use server-side config for security)
         updated_config = DEFAULT_CONFIG.copy()
         updated_config.update({
             'llm_provider': config['llm_provider'],
-            'backend_url': config['backend_url'],
-            'api_key': config.get('api_key', ''),
             'shallow_thinker': config['shallow_thinker'],
             'deep_thinker': config['deep_thinker'],
             'research_depth': config['research_depth'],
-            'session_id': session_id  # Add session ID for unique memory collections
+            'session_id': session_id,  # Add session ID for unique memory collections
+            'language': config.get('language', 'english')  # Add language preference
         })
         
         if not is_production():
@@ -362,4 +367,4 @@ if __name__ == '__main__':
     # Use port from environment variable for Cloud Run compatibility
     port = int(os.environ.get('PORT', 8080))
     
-    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True) 
+    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

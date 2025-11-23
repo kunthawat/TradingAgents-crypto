@@ -16,8 +16,8 @@ DEFAULT_CONFIG = {
     "llm_provider": "openai",
     "deep_think_llm": "deepseek-ai/DeepSeek-R1-0528",
     "quick_think_llm": "deepseek-ai/DeepSeek-R1-0528",
-    "backend_url": "https://llm.chutes.ai/v1",
-    "embeddings_url": "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings",
+    "backend_url": os.getenv("LLM_URL", "https://llm.chutes.ai/v1"),
+    "embeddings_url": os.getenv("EMBEDDINGS_URL", "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings"),
     "api_key": os.getenv("OPENAI_API_KEY", ""),
     # Debate and discussion settings
     "max_debate_rounds": 1,

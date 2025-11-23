@@ -50,6 +50,10 @@ class TradingAgentsGraph:
 
         # Update the interface's config
         set_config(self.config)
+        
+        # Set language preference for AI responses
+        self.language = self.config.get('language', 'english')
+        self._set_language_prompts()
 
         # Create necessary directories
         os.makedirs(
@@ -130,6 +134,23 @@ class TradingAgentsGraph:
 
         # Set up the graph
         self.graph = self.graph_setup.setup_graph(selected_analysts)
+
+    def _set_language_prompts(self):
+        """Set language-specific prompts for AI responses."""
+        if self.language == 'thai':
+            self.language_prompt = (
+                "กรุณาตอบทุกคำถามและวิเคราะห์ข้อมูลทั้งหมดเป็นภาษาไทย "
+                "โปรดใช้ภาษาไทยที่เป็นทางการและเป็นธรรมชาติในการวิเคราะห์การลงทุน "
+                "ให้ข้อมูลที่ละเอียดและเข้าใจง่ายสำหรับนักลงทุนคนไทย "
+                "รวมถึงการอธิบายแนวโน้ม ความเสี่ยง และคำแนะนำการลงทุนเป็นภาษาไทย"
+            )
+        else:
+            self.language_prompt = (
+                "Please provide all responses and analysis in English. "
+                "Use clear, professional language suitable for investment analysis. "
+                "Provide detailed insights that are easy to understand for investors. "
+                "Include explanations of trends, risks, and investment recommendations in English."
+            )
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
         """Create tool nodes for different data sources."""
