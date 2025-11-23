@@ -1,6 +1,7 @@
 import chromadb
 from chromadb.config import Settings
-from openai import OpenAI
+import requests
+import json
 
 
 class FinancialSituationMemory:
@@ -12,13 +13,13 @@ class FinancialSituationMemory:
                 base_url=config["backend_url"],
                 api_key=config["api_key"]
             )
+            self.use_direct_http = False
         else:
             # Use dedicated embeddings endpoint for Chutes
             self.embedding = "Qwen/Qwen3-Embedding-8B"  # Model for Chutes embeddings API
-            self.client = OpenAI(
-                base_url=config["embeddings_url"],
-                api_key=config["api_key"]
-            )
+            self.embeddings_url = config["embeddings_url"]
+            self.api_key = config["api_key"]
+            self.use_direct_http = True
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         
         # Make collection name unique per session to avoid conflicts
@@ -40,10 +41,27 @@ class FinancialSituationMemory:
     def get_embedding(self, text):
         """Get embedding for a text"""
         
-        # Both endpoints now require model parameter
-        response = self.client.embeddings.create(model=self.embedding, input=text)
-        
-        return response.data[0].embedding
+        if self.use_direct_http:
+            # Use direct HTTP request for Chutes embeddings
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "input": text,
+                "model": self.embedding
+            }
+            
+            response = requests.post(self.embeddings_url, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            return result['data'][0]['embedding']
+        else:
+            # Use OpenAI client for local Ollama
+            response = self.client.embeddings.create(model=self.embedding, input=text)
+            return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
         """Add financial situations and their corresponding advice. Parameter is a list of tuples (situation, rec)"""
