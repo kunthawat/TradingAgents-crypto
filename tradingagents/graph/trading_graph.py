@@ -13,7 +13,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
-from tradingagents.default_config import DEFAULT_CONFIG
+from tradingagents.dataflows.config import get_config
 from tradingagents.agents.utils.memory import FinancialSituationMemory
 from tradingagents.agents.utils.agent_states import (
     AgentState,
@@ -46,7 +46,7 @@ class TradingAgentsGraph:
             config: Configuration dictionary. If None, uses default config
         """
         self.debug = debug
-        self.config = config or DEFAULT_CONFIG
+        self.config = config or get_config()
 
         # Update the interface's config
         set_config(self.config)

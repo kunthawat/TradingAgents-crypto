@@ -14,7 +14,7 @@ class FinancialSituationMemory:
             )
         else:
             # Use dedicated embeddings endpoint for Chutes
-            self.embedding = "Qwen/Qwen2.5-7B-Instruct"  # Model for Chutes embeddings API
+            self.embedding = "Qwen/Qwen3-Embedding-8B"  # Model for Chutes embeddings API
             self.client = OpenAI(
                 base_url=config["embeddings_url"],
                 api_key=config["api_key"]
