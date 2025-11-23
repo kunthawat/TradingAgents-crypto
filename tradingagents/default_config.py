@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "deep_think_llm": "deepseek-ai/DeepSeek-R1-0528",
     "quick_think_llm": "deepseek-ai/DeepSeek-R1-0528",
     "backend_url": "https://llm.chutes.ai/v1",
+    "embeddings_url": "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings",
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,

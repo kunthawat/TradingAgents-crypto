@@ -7,12 +7,18 @@ class FinancialSituationMemory:
     def __init__(self, name, config):
         if config["backend_url"] == "http://localhost:11434/v1":
             self.embedding = "nomic-embed-text"
+            # Use local Ollama for embeddings when using local backend
+            self.client = OpenAI(
+                base_url=config["backend_url"],
+                api_key=config["api_key"]
+            )
         else:
-            self.embedding = "text-embedding-3-small"
-        self.client = OpenAI(
-            base_url=config["backend_url"],
-            api_key=config["api_key"]
-        )
+            # Use dedicated embeddings endpoint for Chutes
+            self.embedding = "Qwen/Qwen2.5-7B-Instruct"  # Model for Chutes embeddings API
+            self.client = OpenAI(
+                base_url=config["embeddings_url"],
+                api_key=config["api_key"]
+            )
         self.chroma_client = chromadb.Client(Settings(allow_reset=True))
         
         # Make collection name unique per session to avoid conflicts
@@ -32,11 +38,11 @@ class FinancialSituationMemory:
         self.situation_collection = self.chroma_client.create_collection(name=unique_name)
 
     def get_embedding(self, text):
-        """Get OpenAI embedding for a text"""
+        """Get embedding for a text"""
         
-        response = self.client.embeddings.create(
-            model=self.embedding, input=text
-        )
+        # Both endpoints now require model parameter
+        response = self.client.embeddings.create(model=self.embedding, input=text)
+        
         return response.data[0].embedding
 
     def add_situations(self, situations_and_advice):
