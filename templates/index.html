@@ -633,40 +633,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // API Key Management (WARNING: localStorage is not secure for production)
-        function loadSavedApiKey() {
-            // Security note: localStorage can be accessed by any script on the page
-            // In production, consider session-only storage or server-side session management
-            const savedApiKey = localStorage.getItem('tradingAgentsCrypto_apiKey');
-            if (savedApiKey && isValidApiKeyFormat(savedApiKey)) {
-                document.getElementById('api_key').value = savedApiKey;
-            }
-        }
-        
-        function saveApiKey() {
-            const apiKey = document.getElementById('api_key').value.trim();
-            if (apiKey && isValidApiKeyFormat(apiKey)) {
-                // WARNING: This stores the API key in browser localStorage
-                // Only use this for development/testing purposes
-                localStorage.setItem('tradingAgentsCrypto_apiKey', apiKey);
-            }
-        }
-        
-        function isValidApiKeyFormat(apiKey) {
-            // Basic validation to prevent storing obviously invalid keys
-            if (!apiKey || apiKey.length < 10) return false;
-            
-            // Check for common API key patterns
-            const patterns = [
-                /^sk-proj-[a-zA-Z0-9_-]+$/,  // OpenAI project keys
-                /^sk-[a-zA-Z0-9_-]{20,}$/,   // OpenAI keys
-                /^AIza[a-zA-Z0-9_-]{35}$/,   // Google API keys
-                /^ya29\.[a-zA-Z0-9_-]+$/,    // Google OAuth tokens
-            ];
-            
-            return patterns.some(pattern => pattern.test(apiKey));
-        }
-        
         // Theme Management
         function toggleTheme() {
             const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -681,19 +647,17 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
         }
         
-        // Load saved API key on page load
+        // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            loadSavedApiKey();
             loadSavedTheme();
+            
+            // Set default date to today
+            const today = new Date().toISOString().split('T')[0];
+            const dateField = document.getElementById('analysis_date');
+            if (dateField) {
+                dateField.value = today;
+            }
         });
-        
-        // Save API key when user types
-        document.getElementById('api_key').addEventListener('input', function() {
-            saveApiKey();
-        });
-        
-        // Set default date to today
-        document.getElementById('analysis_date').value = new Date().toISOString().split('T')[0];
         
         // Handle analyst selection
         document.querySelectorAll('.checkbox-item').forEach(item => {
@@ -761,23 +725,11 @@
             });
         });
         
-        // Update backend URL based on provider selection
+        // Update model options based on provider selection
         document.getElementById('llm_provider').addEventListener('change', function() {
             const provider = this.value;
-            const urlInput = document.getElementById('backend_url');
             const shallowSelect = document.getElementById('shallow_thinker');
             const deepSelect = document.getElementById('deep_thinker');
-            
-            // Update backend URL (but keep custom URL if it's already set to custom endpoint)
-            const urls = {
-                'openai': 'https://llm.chutes.ai/v1',  // Keep your custom URL as default
-                'anthropic': 'https://api.anthropic.com/',
-                'google': 'https://generativelanguage.googleapis.com/v1'
-            };
-            // Only update URL if it's not already your custom endpoint
-            if (urlInput.value !== 'https://llm.chutes.ai/v1') {
-                urlInput.value = urls[provider] || '';
-            }
             
             // Update model options
             const models = {
