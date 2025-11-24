@@ -181,6 +181,67 @@ def start_analysis():
     
     return jsonify({'session_id': session_id, 'status': 'started'})
 
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """Get status of all analysis sessions or a specific session"""
+    session_id = request.args.get('session_id')
+    
+    if session_id:
+        # Get status of specific session
+        if session_id in analysis_sessions:
+            session = analysis_sessions[session_id]
+            buffer = session['buffer']
+            return jsonify({
+                'session_id': session_id,
+                'status': session['status'],
+                'progress': buffer.progress,
+                'current_step': buffer.current_step,
+                'agent_status': buffer.agent_status,
+                'report_sections': {k: bool(v) for k, v in buffer.report_sections.items()},
+                'config': {
+                    'ticker': session['config'].get('ticker'),
+                    'analysis_date': session['config'].get('analysis_date'),
+                    'analysts': session['config'].get('analysts')
+                }
+            })
+        else:
+            return jsonify({'error': 'Session not found'}), 404
+    else:
+        # Get status of all sessions
+        sessions_status = {}
+        for sid, session in analysis_sessions.items():
+            buffer = session['buffer']
+            sessions_status[sid] = {
+                'status': session['status'],
+                'progress': buffer.progress,
+                'current_step': buffer.current_step,
+                'ticker': session['config'].get('ticker'),
+                'analysis_date': session['config'].get('analysis_date')
+            }
+        
+        return jsonify({
+            'total_sessions': len(sessions_status),
+            'sessions': sessions_status
+        })
+
+@app.route('/api/sessions', methods=['GET'])
+def list_sessions():
+    """List all analysis sessions"""
+    sessions = []
+    for session_id, session in analysis_sessions.items():
+        sessions.append({
+            'session_id': session_id,
+            'status': session['status'],
+            'ticker': session['config'].get('ticker'),
+            'analysis_date': session['config'].get('analysis_date'),
+            'created_at': session_id  # Using session_id as timestamp proxy
+        })
+    
+    return jsonify({
+        'total_sessions': len(sessions),
+        'sessions': sorted(sessions, key=lambda x: x['session_id'], reverse=True)
+    })
+
 def run_analysis_background(session_id: str, config: Dict):
     """Run the trading analysis in background thread"""
     import traceback
