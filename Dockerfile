@@ -26,7 +26,7 @@ COPY . .
 RUN mkdir -p logs data results
 
 # Expose port
-EXPOSE 8080
+EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
