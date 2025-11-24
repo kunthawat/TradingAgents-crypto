@@ -557,8 +557,8 @@
                             <div>
                                 <label class="form-label" style="font-size: 0.9rem; margin-bottom: 5px;">Quick Thinking</label>
                                 <select class="form-select" id="shallow_thinker" name="shallow_thinker">
-                                    <option value="deepseek-ai/DeepSeek-R1-0528" selected>DeepSeek-R1-0528 - Custom model (default)</option>
-                                    <option value="zai-org/GLM-4.6">GLM-4.6 - Advanced reasoning model</option>
+                                    <option value="zai-org/GLM-4.6" selected>GLM-4.6 - Advanced reasoning model (default)</option>
+                                    <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528 - Custom model</option>
                                     <option value="gpt-4o-mini">GPT-4o-mini</option>
                                     <option value="gpt-4.1-nano">GPT-4.1-nano</option>
                                     <option value="gpt-4.1-mini">GPT-4.1-mini</option>
@@ -568,8 +568,8 @@
                             <div>
                                 <label class="form-label" style="font-size: 0.9rem; margin-bottom: 5px;">Deep Thinking</label>
                                 <select class="form-select" id="deep_thinker" name="deep_thinker">
-                                    <option value="deepseek-ai/DeepSeek-R1-0528" selected>DeepSeek-R1-0528 - Custom model (default)</option>
-                                    <option value="zai-org/GLM-4.6">GLM-4.6 - Advanced reasoning model</option>
+                                    <option value="zai-org/GLM-4.6" selected>GLM-4.6 - Advanced reasoning model (default)</option>
+                                    <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528 - Custom model</option>
                                     <option value="gpt-4.1-nano">GPT-4.1-nano</option>
                                     <option value="gpt-4.1-mini">GPT-4.1-mini</option>
                                     <option value="gpt-4o">GPT-4o</option>
@@ -735,14 +735,16 @@
             const models = {
                 'openai': {
                     shallow: [
-                        {value: 'deepseek-ai/DeepSeek-R1-0528', text: 'DeepSeek-R1-0528 - Custom model (default)'},
+                        {value: 'zai-org/GLM-4.6', text: 'GLM-4.6 - Advanced reasoning model (default)'},
+                        {value: 'deepseek-ai/DeepSeek-R1-0528', text: 'DeepSeek-R1-0528 - Custom model'},
                         {value: 'gpt-4o-mini', text: 'GPT-4o-mini - Fast and efficient for quick tasks'},
                         {value: 'gpt-4.1-nano', text: 'GPT-4.1-nano - Ultra-lightweight model for basic operations'},
                         {value: 'gpt-4.1-mini', text: 'GPT-4.1-mini - Compact model with good performance'},
                         {value: 'gpt-4o', text: 'GPT-4o - Standard model with solid capabilities'}
                     ],
                     deep: [
-                        {value: 'deepseek-ai/DeepSeek-R1-0528', text: 'DeepSeek-R1-0528 - Custom model (default)'},
+                        {value: 'zai-org/GLM-4.6', text: 'GLM-4.6 - Advanced reasoning model (default)'},
+                        {value: 'deepseek-ai/DeepSeek-R1-0528', text: 'DeepSeek-R1-0528 - Custom model'},
                         {value: 'gpt-4.1-nano', text: 'GPT-4.1-nano - Ultra-lightweight model for basic operations'},
                         {value: 'gpt-4.1-mini', text: 'GPT-4.1-mini - Compact model with good performance'},
                         {value: 'gpt-4o', text: 'GPT-4o - Standard model with solid capabilities'},
@@ -794,8 +796,8 @@
                 const optionElement = document.createElement('option');
                 optionElement.value = option.value;
                 optionElement.textContent = option.text;
-                // Set custom model as default if it's the first option
-                if (option.value === 'deepseek-ai/DeepSeek-R1-0528') {
+                // Set GLM-4.6 as default if it's the first option
+                if (option.value === 'zai-org/GLM-4.6') {
                     optionElement.selected = true;
                 }
                 select.appendChild(optionElement);

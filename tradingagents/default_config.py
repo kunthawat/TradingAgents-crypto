@@ -14,8 +14,8 @@ DEFAULT_CONFIG = {
     ),
     # LLM settings
     "llm_provider": "openai",
-    "deep_think_llm": "deepseek-ai/DeepSeek-R1-0528",
-    "quick_think_llm": "deepseek-ai/DeepSeek-R1-0528",
+    "deep_think_llm": "zai-org/GLM-4.6",
+    "quick_think_llm": "zai-org/GLM-4.6",
     "backend_url": os.getenv("LLM_URL", "https://llm.chutes.ai/v1"),
     "embeddings_url": os.getenv("EMBEDDINGS_URL", "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings"),
     "api_key": os.getenv("OPENAI_API_KEY", ""),
