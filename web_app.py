@@ -339,8 +339,8 @@ def run_analysis_background(session_id: str, config: Dict):
         updated_config = DEFAULT_CONFIG.copy()
         updated_config.update({
             'llm_provider': config['llm_provider'],
-            'shallow_thinker': config['shallow_thinker'],
-            'deep_thinker': config['deep_thinker'],
+            'quick_think_llm': config['shallow_thinker'],  # Map frontend name to backend config
+            'deep_think_llm': config['deep_thinker'],      # Map frontend name to backend config
             'research_depth': config['research_depth'],
             'session_id': session_id,  # Add session ID for unique memory collections
             'language': config.get('language', 'english')  # Add language preference
