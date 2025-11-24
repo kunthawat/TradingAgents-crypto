@@ -242,6 +242,88 @@ def list_sessions():
         'sessions': sorted(sessions, key=lambda x: x['session_id'], reverse=True)
     })
 
+@app.route('/api/report', methods=['GET'])
+def get_report():
+    """Get AI-generated report content for a specific session"""
+    session_id = request.args.get('session_id')
+    section = request.args.get('section', 'all')
+    
+    # Validate parameters
+    if not session_id:
+        return jsonify({'error': 'session_id parameter is required'}), 400
+    
+    # Validate section parameter
+    valid_sections = [
+        'all', 'market', 'news', 'fundamentals', 'sentiment', 
+        'investment_plan', 'trader_plan', 'final_decision'
+    ]
+    if section not in valid_sections:
+        return jsonify({
+            'error': f'Invalid section. Must be one of: {", ".join(valid_sections)}'
+        }), 400
+    
+    # Check if session exists
+    if session_id not in analysis_sessions:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    session = analysis_sessions[session_id]
+    buffer = session['buffer']
+    
+    # Check if analysis is completed
+    if session['status'] != 'completed':
+        return jsonify({
+            'error': 'Analysis not completed yet',
+            'status': session['status'],
+            'progress': buffer.progress
+        }), 400
+    
+    # Map section names to report section keys
+    section_mapping = {
+        'market': 'market_report',
+        'news': 'news_report', 
+        'fundamentals': 'fundamentals_report',
+        'sentiment': 'sentiment_report',
+        'investment_plan': 'investment_plan',
+        'trader_plan': 'trader_investment_plan',
+        'final_decision': 'final_trade_decision'
+    }
+    
+    # Build response
+    reports = {}
+    
+    if section == 'all':
+        # Return all completed reports
+        for section_name, report_key in section_mapping.items():
+            content = buffer.report_sections.get(report_key)
+            if content:  # Only include completed reports
+                reports[section_name] = content
+    else:
+        # Return specific section
+        report_key = section_mapping[section]
+        content = buffer.report_sections.get(report_key)
+        
+        if not content:
+            return jsonify({
+                'error': f'Report section "{section}" not available or not completed yet'
+            }), 404
+        
+        reports[section] = content
+    
+    # Build metadata
+    metadata = {
+        'ticker': session['config'].get('ticker'),
+        'analysis_date': session['config'].get('analysis_date'),
+        'completed_at': session_id  # Using session_id as timestamp proxy
+    }
+    
+    return jsonify({
+        'session_id': session_id,
+        'status': session['status'],
+        'requested_section': section,
+        'reports': reports,
+        'metadata': metadata
+    })
+
 def run_analysis_background(session_id: str, config: Dict):
     """Run the trading analysis in background thread"""
     import traceback

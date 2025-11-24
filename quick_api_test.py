@@ -105,13 +105,31 @@ def test_api():
     except Exception as e:
         print(f"❌ Final overview failed: {e}")
     
+    # 7. Test report endpoint (will show error if analysis not completed)
+    print("\n📄 Testing report endpoint...")
+    try:
+        response = requests.get(f"{base_url}/api/report?session_id={session_id}")
+        print(f"✅ Report Test: {response.status_code}")
+        if response.status_code == 200:
+            report_data = response.json()
+            print(f"   Available reports: {list(report_data.get('reports', {}).keys())}")
+        else:
+            error_data = response.json()
+            print(f"   Expected error (analysis not completed): {error_data.get('error')}")
+    except Exception as e:
+        print(f"❌ Report test failed: {e}")
+    
     print("\n🎉 Complete API Test Finished!")
     print("\n📚 Available Endpoints:")
     print(f"   GET  {base_url}/health")
     print(f"   GET  {base_url}/api/status")
     print(f"   GET  {base_url}/api/status?session_id=<id>")
     print(f"   GET  {base_url}/api/sessions")
+    print(f"   GET  {base_url}/api/report?session_id=<id>&section=<section>")
     print(f"   POST {base_url}/api/start_analysis")
+    
+    print("\n📄 Report Sections:")
+    print("   all, market, news, fundamentals, sentiment, investment_plan, trader_plan, final_decision")
 
 if __name__ == "__main__":
     test_api()
