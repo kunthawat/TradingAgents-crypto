@@ -121,6 +121,7 @@ class TradingAgentsGraph:
             self.invest_judge_memory,
             self.risk_manager_memory,
             self.conditional_logic,
+            self.language_prompt,
         )
 
         self.propagator = Propagator()

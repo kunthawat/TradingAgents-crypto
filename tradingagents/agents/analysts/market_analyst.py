@@ -49,7 +49,7 @@ def _is_crypto_symbol(symbol: str) -> bool:
     return False
 
 
-def create_market_analyst(llm, toolkit):
+def create_market_analyst(llm, toolkit, language_prompt=""):
 
     def market_analyst_node(state):
         current_date = state["trade_date"]
@@ -64,7 +64,10 @@ def create_market_analyst(llm, toolkit):
             tools = [toolkit.get_crypto_price_history, toolkit.get_crypto_technical_analysis]
             
             system_message = (
-                """You are a cryptocurrency technical analyst tasked with analyzing crypto markets. Your role is to provide comprehensive technical analysis for cryptocurrency trading. Focus on crypto-specific patterns and indicators that are most relevant for digital assets.
+                language_prompt +
+                """ 
+
+You are a cryptocurrency technical analyst tasked with analyzing crypto markets. Your role is to provide comprehensive technical analysis for cryptocurrency trading. Focus on crypto-specific patterns and indicators that are most relevant for digital assets.
 
 Key areas to analyze for cryptocurrency:
 - Price action and trend analysis
@@ -91,7 +94,10 @@ Please write a very detailed and nuanced report of the trends you observe in the
                 ]
 
             system_message = (
-                """You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
+                language_prompt +
+                """ 
+
+You are a trading assistant tasked with analyzing financial markets. Your role is to select the **most relevant indicators** for a given market condition or trading strategy from the following list. The goal is to choose up to **8 indicators** that provide complementary insights without redundancy. Categories and each category's indicators are:
 
 Moving Averages:
 - close_50_sma: 50 SMA: A medium-term trend indicator. Usage: Identify trend direction and serve as dynamic support/resistance. Tips: It lags price; combine with faster indicators for timely signals.

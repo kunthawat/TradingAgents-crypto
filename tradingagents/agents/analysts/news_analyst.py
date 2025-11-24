@@ -49,7 +49,7 @@ def _is_crypto_symbol(symbol: str) -> bool:
     return False
 
 
-def create_news_analyst(llm, toolkit):
+def create_news_analyst(llm, toolkit, language_prompt=""):
     def news_analyst_node(state):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
@@ -62,10 +62,13 @@ def create_news_analyst(llm, toolkit):
             tools = [toolkit.get_crypto_news_analysis, toolkit.get_google_news]
             
             system_message = (
-                "You are a cryptocurrency news researcher tasked with analyzing recent news and trends over the past week that affect cryptocurrency markets. Please write a comprehensive report of the current state of the crypto world and broader macroeconomic factors that are relevant for cryptocurrency trading. "
-                "Focus on crypto-specific news including: regulatory developments, institutional adoption, technology updates, market sentiment, DeFi trends, NFT markets, blockchain developments, and major crypto exchange news. "
-                "Also consider traditional macroeconomic factors that impact crypto markets such as inflation, monetary policy, global economic uncertainty, and traditional market trends. "
-                "Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help crypto traders make decisions."
+                language_prompt +
+                """ 
+
+You are a cryptocurrency news researcher tasked with analyzing recent news and trends over the past week that affect cryptocurrency markets. Please write a comprehensive report of the current state of the crypto world and broader macroeconomic factors that are relevant for cryptocurrency trading. 
+Focus on crypto-specific news including: regulatory developments, institutional adoption, technology updates, market sentiment, DeFi trends, NFT markets, blockchain developments, and major crypto exchange news. 
+Also consider traditional macroeconomic factors that impact crypto markets such as inflation, monetary policy, global economic uncertainty, and traditional market trends. 
+Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help crypto traders make decisions."""
                 + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             )
         else:
@@ -80,7 +83,10 @@ def create_news_analyst(llm, toolkit):
                 ]
 
             system_message = (
-                "You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."
+                language_prompt +
+                """ 
+
+You are a news researcher tasked with analyzing recent news and trends over the past week. Please write a comprehensive report of the current state of the world that is relevant for trading and macroeconomics. Look at news from EODHD, and finnhub to be comprehensive. Do not simply state the trends are mixed, provide detailed and finegrained analysis and insights that may help traders make decisions."""
                 + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             )
 

@@ -27,6 +27,7 @@ class GraphSetup:
         invest_judge_memory,
         risk_manager_memory,
         conditional_logic: ConditionalLogic,
+        language_prompt: str = "",
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
@@ -39,6 +40,7 @@ class GraphSetup:
         self.invest_judge_memory = invest_judge_memory
         self.risk_manager_memory = risk_manager_memory
         self.conditional_logic = conditional_logic
+        self.language_prompt = language_prompt
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals"]
@@ -62,50 +64,50 @@ class GraphSetup:
 
         if "market" in selected_analysts:
             analyst_nodes["market"] = create_market_analyst(
-                self.quick_thinking_llm, self.toolkit
+                self.quick_thinking_llm, self.toolkit, self.language_prompt
             )
             delete_nodes["market"] = create_msg_delete()
             tool_nodes["market"] = self.tool_nodes["market"]
 
         if "social" in selected_analysts:
             analyst_nodes["social"] = create_social_media_analyst(
-                self.quick_thinking_llm, self.toolkit
+                self.quick_thinking_llm, self.toolkit, self.language_prompt
             )
             delete_nodes["social"] = create_msg_delete()
             tool_nodes["social"] = self.tool_nodes["social"]
 
         if "news" in selected_analysts:
             analyst_nodes["news"] = create_news_analyst(
-                self.quick_thinking_llm, self.toolkit
+                self.quick_thinking_llm, self.toolkit, self.language_prompt
             )
             delete_nodes["news"] = create_msg_delete()
             tool_nodes["news"] = self.tool_nodes["news"]
 
         if "fundamentals" in selected_analysts:
             analyst_nodes["fundamentals"] = create_fundamentals_analyst(
-                self.quick_thinking_llm, self.toolkit
+                self.quick_thinking_llm, self.toolkit, self.language_prompt
             )
             delete_nodes["fundamentals"] = create_msg_delete()
             tool_nodes["fundamentals"] = self.tool_nodes["fundamentals"]
 
         # Create researcher and manager nodes
         bull_researcher_node = create_bull_researcher(
-            self.quick_thinking_llm, self.bull_memory
+            self.quick_thinking_llm, self.bull_memory, self.language_prompt
         )
         bear_researcher_node = create_bear_researcher(
-            self.quick_thinking_llm, self.bear_memory
+            self.quick_thinking_llm, self.bear_memory, self.language_prompt
         )
         research_manager_node = create_research_manager(
-            self.deep_thinking_llm, self.invest_judge_memory
+            self.deep_thinking_llm, self.invest_judge_memory, self.language_prompt
         )
-        trader_node = create_trader(self.quick_thinking_llm, self.trader_memory)
+        trader_node = create_trader(self.quick_thinking_llm, self.trader_memory, self.language_prompt)
 
         # Create risk analysis nodes
-        risky_analyst = create_risky_debator(self.quick_thinking_llm)
-        neutral_analyst = create_neutral_debator(self.quick_thinking_llm)
-        safe_analyst = create_safe_debator(self.quick_thinking_llm)
+        risky_analyst = create_risky_debator(self.quick_thinking_llm, self.language_prompt)
+        neutral_analyst = create_neutral_debator(self.quick_thinking_llm, self.language_prompt)
+        safe_analyst = create_safe_debator(self.quick_thinking_llm, self.language_prompt)
         risk_manager_node = create_risk_manager(
-            self.deep_thinking_llm, self.risk_manager_memory
+            self.deep_thinking_llm, self.risk_manager_memory, self.language_prompt
         )
 
         # Create workflow
