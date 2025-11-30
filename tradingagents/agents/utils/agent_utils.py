@@ -505,3 +505,73 @@ class Toolkit:
             str: Fundamental analysis including market metrics, supply data, and crypto-specific fundamentals
         """
         return interface.get_crypto_fundamentals_analysis(symbol, curr_date)
+
+    # ===== GOLD TRADING TOOLS =====
+
+    @staticmethod
+    @tool
+    def get_gold_price_history(
+        symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "How many days to look back"] = 30,
+    ) -> str:
+        """
+        Get historical price data for gold over a specified time period.
+        Args:
+            symbol (str): Gold symbol (e.g., 'GOLD', 'XAU')
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): Number of days to look back, default is 30
+        Returns:
+            str: Historical price, volume, and market data for gold
+        """
+        return interface.get_gold_price_history(symbol, curr_date, look_back_days)
+
+    @staticmethod
+    @tool
+    def get_gold_market_analysis(
+        symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Get comprehensive market analysis for gold including current price, market cap, volume, and key metrics.
+        Args:
+            symbol (str): Gold symbol (e.g., 'GOLD', 'XAU')
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Comprehensive market data and analysis for gold
+        """
+        return interface.get_gold_market_analysis(symbol, curr_date)
+
+    @staticmethod
+    @tool
+    def get_gold_news_analysis(
+        symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "How many days to look back"] = 7,
+    ) -> str:
+        """
+        Get recent news and market trends affecting gold markets.
+        Args:
+            symbol (str): Gold symbol (e.g., 'GOLD', 'XAU')
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): Number of days to look back, default is 7
+        Returns:
+            str: News analysis and market trends for gold
+        """
+        return interface.get_gold_news_analysis(symbol, curr_date, look_back_days)
+
+    @staticmethod
+    @tool
+    def get_gold_fundamentals_analysis(
+        symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    ) -> str:
+        """
+        Get fundamental analysis for gold including market metrics, supply data, and economic factors.
+        Args:
+            symbol (str): Gold symbol (e.g., 'GOLD', 'XAU')
+            curr_date (str): Current date in yyyy-mm-dd format
+        Returns:
+            str: Fundamental analysis including market metrics and economic factors affecting gold
+        """
+        return interface.get_gold_fundamentals_analysis(symbol, curr_date)

@@ -168,6 +168,9 @@ class TradingAgentsGraph:
                     self.toolkit.get_crypto_price_history,
                     self.toolkit.get_crypto_technical_analysis,
                     self.toolkit.get_crypto_market_analysis,
+                    # Gold tools
+                    self.toolkit.get_gold_price_history,
+                    self.toolkit.get_gold_market_analysis,
                 ]
             ),
             "social": ToolNode(
