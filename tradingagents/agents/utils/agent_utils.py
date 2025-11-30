@@ -575,3 +575,21 @@ class Toolkit:
             str: Fundamental analysis including market metrics and economic factors affecting gold
         """
         return interface.get_gold_fundamentals_analysis(symbol, curr_date)
+
+    @staticmethod
+    @tool
+    def get_gold_technical_analysis(
+        symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+        curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+        look_back_days: Annotated[int, "How many days to look back"] = 30,
+    ) -> str:
+        """
+        Get technical analysis for gold including trends, support/resistance levels, and momentum indicators.
+        Args:
+            symbol (str): Gold symbol (e.g., 'GOLD', 'XAU')
+            curr_date (str): Current date in yyyy-mm-dd format
+            look_back_days (int): Number of days to analyze, default is 30
+        Returns:
+            str: Technical analysis including price trends, volume analysis, and key levels
+        """
+        return interface.get_gold_technical_analysis(symbol, curr_date, look_back_days)

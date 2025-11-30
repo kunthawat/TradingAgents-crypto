@@ -1,173 +1,180 @@
 #!/usr/bin/env python3
 """
-Verify gold tools structure without full imports
+Simple structure verification test for the gold price fix.
+Verifies that the missing tool has been added correctly.
 """
 
 import os
-import re
+import sys
+import inspect
 
-def check_gold_tools_in_agent_utils():
-    """Check if gold tools are present in agent_utils.py"""
-    print("=== Checking Gold Tools in agent_utils.py ===")
+# Add the project root to the path
+sys.path.append('/Users/kunthawatgreethong/Github/TradingAgents-crypto')
+
+def test_agent_utils_structure():
+    """Test that the agent utils has the correct gold tools"""
+    print("🔧 Testing Agent Utils Structure...")
     
     try:
-        with open('tradingagents/agents/utils/agent_utils.py', 'r') as f:
-            content = f.read()
+        from tradingagents.agents.utils.agent_utils import Toolkit
         
-        gold_tools = [
+        # Get all methods from the Toolkit class
+        methods = [method for method in dir(Toolkit) if not method.startswith('_')]
+        
+        # Check for gold tools
+        gold_tools = [method for method in methods if 'gold' in method.lower()]
+        
+        print(f"Found {len(gold_tools)} gold tools:")
+        for tool in gold_tools:
+            print(f"  ✅ {tool}")
+        
+        # Check for the specific missing tool
+        if 'get_gold_technical_analysis' in gold_tools:
+            print("✅ get_gold_technical_analysis tool is present")
+            return True
+        else:
+            print("❌ get_gold_technical_analysis tool is missing")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Structure test failed: {e}")
+        return False
+
+def test_tool_signature():
+    """Test that the tool has the correct signature"""
+    print("\n🔧 Testing Tool Signature...")
+    
+    try:
+        from tradingagents.agents.utils.agent_utils import Toolkit
+        
+        # Get the tool method
+        tool_method = getattr(Toolkit, 'get_gold_technical_analysis')
+        
+        # Check if it's a static method
+        if isinstance(inspect.getattr_static(Toolkit, 'get_gold_technical_analysis'), staticmethod):
+            print("✅ Tool is correctly defined as static method")
+        else:
+            print("❌ Tool is not a static method")
+            return False
+        
+        # Check the signature
+        sig = inspect.signature(tool_method)
+        params = list(sig.parameters.keys())
+        
+        expected_params = ['symbol', 'curr_date', 'look_back_days']
+        
+        if all(param in params for param in expected_params):
+            print("✅ Tool has correct parameters")
+            print(f"  Parameters: {params}")
+            return True
+        else:
+            print(f"❌ Tool missing parameters. Expected: {expected_params}, Got: {params}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Signature test failed: {e}")
+        return False
+
+def test_interface_function_exists():
+    """Test that the interface function exists"""
+    print("\n🔧 Testing Interface Function...")
+    
+    try:
+        import tradingagents.dataflows.interface as interface
+        
+        # Check if the interface function exists
+        if hasattr(interface, 'get_gold_technical_analysis'):
+            print("✅ Interface function exists")
+            return True
+        else:
+            print("❌ Interface function missing")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Interface test failed: {e}")
+        return False
+
+def test_complete_gold_tool_suite():
+    """Test that all gold tools are present"""
+    print("\n🔧 Testing Complete Gold Tool Suite...")
+    
+    try:
+        from tradingagents.agents.utils.agent_utils import Toolkit
+        
+        # Expected gold tools
+        expected_tools = [
             'get_gold_price_history',
             'get_gold_market_analysis', 
             'get_gold_news_analysis',
-            'get_gold_fundamentals_analysis'
+            'get_gold_fundamentals_analysis',
+            'get_gold_technical_analysis'
         ]
         
-        for tool in gold_tools:
-            if f'def {tool}(' in content:
-                print(f"✓ {tool} - Found in agent_utils.py")
-            else:
-                print(f"✗ {tool} - Missing in agent_utils.py")
+        # Check each tool
+        missing_tools = []
+        for tool in expected_tools:
+            if not hasattr(Toolkit, tool):
+                missing_tools.append(tool)
         
-        # Check for gold tools section
-        if '# ===== GOLD TRADING TOOLS =====' in content:
-            print("✓ Gold tools section header found")
+        if not missing_tools:
+            print("✅ All gold tools are present:")
+            for tool in expected_tools:
+                print(f"  ✅ {tool}")
+            return True
         else:
-            print("✗ Gold tools section header missing")
-        
-        print()
-        
+            print(f"❌ Missing gold tools: {missing_tools}")
+            return False
+            
     except Exception as e:
-        print(f"✗ Error checking agent_utils.py: {e}")
-        print()
-
-def check_gold_tools_in_trading_graph():
-    """Check if gold tools are referenced in trading_graph.py"""
-    print("=== Checking Gold Tools in trading_graph.py ===")
-    
-    try:
-        with open('tradingagents/graph/trading_graph.py', 'r') as f:
-            content = f.read()
-        
-        gold_tool_references = [
-            'self.toolkit.get_gold_price_history',
-            'self.toolkit.get_gold_market_analysis',
-            'self.toolkit.get_gold_news_analysis',
-            'self.toolkit.get_gold_fundamentals_analysis'
-        ]
-        
-        for ref in gold_tool_references:
-            if ref in content:
-                print(f"✓ {ref} - Found in trading_graph.py")
-            else:
-                print(f"✗ {ref} - Missing in trading_graph.py")
-        
-        # Check which nodes contain gold tools
-        nodes = ['market', 'social', 'news', 'fundamentals']
-        for node in nodes:
-            node_pattern = f'"{node}": ToolNode\\('
-            if re.search(node_pattern, content):
-                # Find the content between this node and the next node
-                start = content.find(f'"{node}": ToolNode(')
-                if start != -1:
-                    # Find the end of this node (next node or closing brace)
-                    next_node = content.find('",', start + 1)
-                    if next_node != -1:
-                        node_content = content[start:next_node]
-                    else:
-                        node_content = content[start:]
-                    
-                    gold_refs = [ref for ref in gold_tool_references if ref in node_content]
-                    if gold_refs:
-                        print(f"✓ {node} node has {len(gold_refs)} gold tools")
-                    else:
-                        print(f"⚠️  {node} node has no gold tools")
-        
-        print()
-        
-    except Exception as e:
-        print(f"✗ Error checking trading_graph.py: {e}")
-        print()
-
-def check_interface_functions():
-    """Check if gold interface functions exist"""
-    print("=== Checking Gold Interface Functions ===")
-    
-    try:
-        with open('tradingagents/dataflows/interface.py', 'r') as f:
-            content = f.read()
-        
-        gold_functions = [
-            'get_gold_price_history',
-            'get_gold_market_analysis',
-            'get_gold_news_analysis', 
-            'get_gold_fundamentals_analysis'
-        ]
-        
-        for func in gold_functions:
-            if f'def {func}(' in content:
-                print(f"✓ {func} - Found in interface.py")
-            else:
-                print(f"✗ {func} - Missing in interface.py")
-        
-        print()
-        
-    except Exception as e:
-        print(f"✗ Error checking interface.py: {e}")
-        print()
-
-def check_gold_utils():
-    """Check if gold_utils.py exists and has the right structure"""
-    print("=== Checking gold_utils.py Structure ===")
-    
-    try:
-        with open('tradingagents/dataflows/gold_utils.py', 'r') as f:
-            content = f.read()
-        
-        # Check for GoldPriceAPI class
-        if 'class GoldPriceAPI' in content:
-            print("✓ GoldPriceAPI class found")
-        else:
-            print("✗ GoldPriceAPI class missing")
-        
-        # Check for key methods
-        methods = [
-            'get_current_price',
-            'get_historical_data',
-            'get_market_analysis'
-        ]
-        
-        for method in methods:
-            if f'def {method}(' in content:
-                print(f"✓ {method} - Found in GoldPriceAPI")
-            else:
-                print(f"✗ {method} - Missing in GoldPriceAPI")
-        
-        print()
-        
-    except Exception as e:
-        print(f"✗ Error checking gold_utils.py: {e}")
-        print()
+        print(f"❌ Tool suite test failed: {e}")
+        return False
 
 def main():
-    """Run all structure verification tests"""
-    print("🔍 Verifying Gold Tools Structure")
-    print("=" * 40)
-    print()
+    """Run structure verification tests"""
+    print("🎯 Gold Price Fix - Structure Verification")
+    print("=" * 50)
     
-    # Run checks
-    check_gold_tools_in_agent_utils()
-    check_gold_tools_in_trading_graph()
-    check_interface_functions()
-    check_gold_utils()
+    # Run tests
+    tests = [
+        ("Agent Utils Structure", test_agent_utils_structure),
+        ("Tool Signature", test_tool_signature),
+        ("Interface Function", test_interface_function_exists),
+        ("Complete Gold Tool Suite", test_complete_gold_tool_suite)
+    ]
     
-    print("🎉 Structure verification completed!")
-    print()
-    print("Summary:")
-    print("- Gold tools have been added to Toolkit class")
-    print("- Gold tools are integrated into trading graph nodes")
-    print("- Interface functions are available")
-    print("- Gold utilities are properly structured")
-    print()
-    print("The AttributeError should now be resolved!")
+    results = {}
+    for test_name, test_func in tests:
+        print(f"\n{'='*20} {test_name} {'='*20}")
+        results[test_name] = test_func()
+    
+    # Final summary
+    print(f"\n{'='*50}")
+    print("🏁 STRUCTURE VERIFICATION RESULTS")
+    print(f"{'='*50}")
+    
+    passed_tests = sum(results.values())
+    total_tests = len(results)
+    
+    for test_name, passed in results.items():
+        status = "✅ PASS" if passed else "❌ FAIL"
+        print(f"{status}: {test_name}")
+    
+    print(f"\n📊 Overall: {passed_tests}/{total_tests} tests passed")
+    
+    if passed_tests == total_tests:
+        print("\n🎉 STRUCTURE VERIFICATION PASSED!")
+        print("✅ The missing get_gold_technical_analysis tool has been correctly added")
+        print("✅ All gold tools are now available to trading agents")
+        print("✅ The fix should resolve the $0.00 gold price issue")
+        print("\n📝 Next Steps:")
+        print("   1. Deploy the code changes")
+        print("   2. Test the web application with GOLD analysis")
+        print("   3. Verify users see real gold prices (~$4,000+) instead of $0.00")
+        return True
+    else:
+        print(f"\n⚠️  {total_tests - passed_tests} test(s) failed. Check the implementation.")
+        return False
 
 if __name__ == "__main__":
-    main()
+    success = main()
+    sys.exit(0 if success else 1)

@@ -1041,6 +1041,33 @@ def get_gold_news_analysis(
     return result_str
 
 
+def get_gold_technical_analysis(
+    symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "How many days to look back"] = 30,
+) -> str:
+    """
+    Get technical analysis for gold including trends, support/resistance levels, and momentum indicators
+    
+    Args:
+        symbol: Gold symbol (e.g., 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to analyze
+    
+    Returns:
+        String containing technical analysis
+    """
+    from datetime import datetime, timedelta
+    
+    curr_date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_date_obj = curr_date_obj - timedelta(days=look_back_days)
+    start_date = start_date_obj.strftime("%Y-%m-%d")
+    
+    # Call the gold_utils function directly to avoid recursion
+    from .gold_utils import get_gold_technical_analysis as gold_tech_analysis
+    return gold_tech_analysis(symbol, start_date, curr_date)
+
+
 def get_gold_fundamentals_analysis(
     symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
     curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
