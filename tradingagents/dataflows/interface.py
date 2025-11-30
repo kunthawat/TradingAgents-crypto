@@ -10,6 +10,11 @@ from .coingecko_utils import (
     get_crypto_news,
     get_crypto_technical_indicators
 )
+from .gold_utils import (
+    get_gold_price_data,
+    get_gold_technical_analysis,
+    GoldPriceAPI
+)
 from dateutil.relativedelta import relativedelta
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -900,3 +905,267 @@ def get_crypto_fundamentals_analysis(
 """
     
     return market_data + additional_context
+
+
+# ===== GOLD TRADING FUNCTIONS =====
+
+def get_gold_market_analysis(
+    symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get comprehensive market analysis for gold
+    
+    Args:
+        symbol: Gold symbol (e.g., 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+    
+    Returns:
+        String containing market data and analysis
+    """
+    try:
+        api = GoldPriceAPI()
+        raw_data = api.get_gold_history()
+        
+        if not raw_data:
+            return f"No gold market data available for {symbol}"
+        
+        df = api.parse_gold_data(raw_data)
+        if df.empty:
+            return f"No valid gold market data found for {symbol}"
+        
+        # Get summary statistics
+        summary = api.get_gold_summary(df)
+        
+        result_str = f"## {symbol.upper()} Gold Market Analysis:\n\n"
+        result_str += f"**Current Price:** ${summary['current_price']:,.2f}\n"
+        result_str += f"**Period Change:** {summary['price_change_pct']:+.2f}%\n"
+        result_str += f"**Period High:** ${summary['period_high']:,.2f}\n"
+        result_str += f"**Period Low:** ${summary['period_low']:,.2f}\n"
+        result_str += f"**Average Volume:** {summary['avg_volume']:,.0f}\n"
+        result_str += f"**Volatility:** {summary['volatility']:.2f}%\n"
+        result_str += f"**Data Points:** {summary['data_points']}\n"
+        result_str += f"**Date Range:** {summary['date_range']['start']} to {summary['date_range']['end']}\n"
+        
+        # Add technical indicators if available
+        if 'current_rsi' in summary:
+            result_str += f"**Current RSI:** {summary['current_rsi']:.1f}\n"
+        if 'current_macd' in summary:
+            result_str += f"**Current MACD:** {summary['current_macd']:+.2f}\n"
+        if 'bb_position' in summary:
+            result_str += f"**Bollinger Band Position:** {summary['bb_position']:.2f}\n"
+        
+        return result_str
+        
+    except Exception as e:
+        return f"Error retrieving gold market analysis for {symbol}: {str(e)}"
+
+
+def get_gold_price_history(
+    symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "How many days to look back"] = 30,
+) -> str:
+    """
+    Get historical price data for gold
+    
+    Args:
+        symbol: Gold symbol (e.g., 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+    
+    Returns:
+        String containing historical price data
+    """
+    from datetime import datetime, timedelta
+    
+    curr_date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
+    start_date_obj = curr_date_obj - timedelta(days=look_back_days)
+    start_date = start_date_obj.strftime("%Y-%m-%d")
+    
+    return get_gold_price_data(symbol, start_date, curr_date)
+
+
+def get_gold_news_analysis(
+    symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "How many days to look back"] = 7,
+) -> str:
+    """
+    Get news and market trends for gold
+    
+    Args:
+        symbol: Gold symbol (e.g., 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+    
+    Returns:
+        String containing news and trends
+    """
+    # Use Google News for gold-specific news
+    gold_queries = ["gold price", "gold market", "precious metals", "inflation gold", "central bank gold"]
+    
+    result_str = f"## {symbol.upper()} Gold News and Market Trends (Past {look_back_days} days):\n\n"
+    
+    for query in gold_queries:
+        news_data = get_google_news(query, curr_date, look_back_days)
+        if news_data:
+            result_str += news_data + "\n"
+    
+    # Add gold-specific market context
+    result_str += f"""
+## Gold Market Context:
+
+**Key Factors Influencing Gold Prices:**
+- Inflation expectations and monetary policy
+- Currency fluctuations (especially USD strength)
+- Geopolitical tensions and economic uncertainty
+- Central bank buying and selling activities
+- Jewelry demand and industrial usage
+- Mining production and supply constraints
+- Interest rate environment and opportunity cost
+
+**Safe-Haven Dynamics:**
+- Gold typically performs well during market uncertainty
+- Inverse correlation with risk assets during crises
+- Long-term store of value and inflation hedge
+- Portfolio diversification benefits
+
+**Trading Considerations:**
+- Gold often shows different patterns than traditional assets
+- Seasonal tendencies (stronger in certain months)
+- Responds to macroeconomic data releases
+- Influenced by real interest rates and inflation expectations
+"""
+    
+    return result_str
+
+
+def get_gold_fundamentals_analysis(
+    symbol: Annotated[str, "Gold symbol like GOLD, XAU"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+) -> str:
+    """
+    Get fundamental analysis for gold (different from traditional stocks and crypto)
+    
+    Args:
+        symbol: Gold symbol (e.g., 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+    
+    Returns:
+        String containing fundamental analysis for gold
+    """
+    result_str = f"## {symbol.upper()} Gold Fundamental Analysis:\n\n"
+    
+    result_str += """
+**Gold as an Asset Class:**
+
+**Unique Characteristics:**
+- Physical commodity with intrinsic value
+- No counterparty risk or default risk
+- Highly liquid globally recognized asset
+- Limited supply (finite resource)
+- Historical store of value over thousands of years
+
+**Supply and Demand Dynamics:**
+- **Supply:** Mining production (~3,000 tonnes/year), recycling, central bank sales
+- **Demand:** Jewelry (~50%), investment (~30%), central banks (~10%), industrial (~10%)
+- **Above-ground stocks:** Estimated 197,000 tonnes total
+- **Production costs:** Vary by mine, typically $1,000-$1,500/ounce all-in costs
+
+**Market Structure:**
+- 24-hour global trading across multiple time zones
+- Major hubs: London, New York, Shanghai, Zurich
+- Traded as physical gold, futures, ETFs, and derivatives
+- Price discovery through COMEX futures and London spot market
+
+**Economic Relationships:**
+- **Inverse correlation** with real interest rates
+- **Positive correlation** with inflation expectations
+- **Inverse correlation** with USD strength (usually)
+- **Safe-haven demand** during geopolitical crises
+
+**Key Fundamental Indicators:**
+- Real interest rates (inflation-adjusted yields)
+- US Dollar Index (DXY) strength
+- Central bank gold reserve changes
+- Mining production and exploration activity
+- Physical demand from Asia (India, China)
+- ETF inflows/outflows
+- Futures market positioning (COT reports)
+
+**Investment Considerations:**
+- No yield or dividend (opportunity cost)
+- Storage and insurance costs for physical gold
+- Tax treatment varies by jurisdiction
+- Long-term performance vs. inflation and other assets
+- Portfolio allocation recommendations (5-10% typical)
+
+**Risk Factors:**
+- Rising real interest rates
+- Strong US dollar
+- Reduced geopolitical tensions
+- Increased supply from mining
+- Regulatory changes for precious metals
+- Competition from other safe-haven assets
+"""
+    
+    return result_str
+
+
+def detect_asset_type(symbol: str) -> str:
+    """
+    Detect whether a symbol is crypto, gold, or unknown
+    
+    Args:
+        symbol: Trading symbol
+    
+    Returns:
+        String indicating asset type: 'crypto', 'gold', or 'unknown'
+    """
+    symbol_upper = symbol.upper()
+    
+    # Gold symbols
+    gold_symbols = ['GOLD', 'XAU', 'XAUUSD', 'GOLD/USD', 'GC=F']
+    if symbol_upper in gold_symbols:
+        return 'gold'
+    
+    # Major crypto symbols (from coingecko_utils)
+    crypto_symbols = [
+        'BTC', 'ETH', 'ADA', 'SOL', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'AAVE',
+        'XRP', 'LTC', 'BCH', 'EOS', 'TRX', 'XLM', 'VET', 'ALGO', 'ATOM', 'NEAR',
+        'FTM', 'CRO', 'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'CHZ', 'BAT', 'ZEC',
+        'DASH', 'XMR', 'DOGE', 'SHIB', 'BNB', 'USDT', 'USDC', 'TON', 'ICP',
+        'HBAR', 'THETA', 'FIL', 'ETC', 'MKR', 'APT', 'LDO', 'OP'
+    ]
+    
+    if symbol_upper in crypto_symbols:
+        return 'crypto'
+    
+    return 'unknown'
+
+
+def get_asset_data(
+    symbol: Annotated[str, "Trading symbol (crypto or gold)"],
+    curr_date: Annotated[str, "Current date in yyyy-mm-dd format"],
+    look_back_days: Annotated[int, "How many days to look back"] = 30,
+) -> str:
+    """
+    Universal function to get data for both crypto and gold assets
+    
+    Args:
+        symbol: Trading symbol (e.g., 'BTC', 'ETH', 'GOLD', 'XAU')
+        curr_date: Current date in yyyy-mm-dd format
+        look_back_days: Number of days to look back
+    
+    Returns:
+        String containing appropriate market data based on asset type
+    """
+    asset_type = detect_asset_type(symbol)
+    
+    if asset_type == 'gold':
+        return get_gold_market_analysis(symbol, curr_date)
+    elif asset_type == 'crypto':
+        return get_crypto_market_analysis(symbol, curr_date)
+    else:
+        return f"Unknown asset type for symbol '{symbol}'. Supported symbols: cryptocurrencies (BTC, ETH, etc.) and gold (GOLD, XAU)."

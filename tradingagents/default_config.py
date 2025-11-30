@@ -19,6 +19,15 @@ DEFAULT_CONFIG = {
     "backend_url": os.getenv("LLM_URL", "https://llm.chutes.ai/v1"),
     "embeddings_url": os.getenv("EMBEDDINGS_URL", "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings"),
     "api_key": os.getenv("OPENAI_API_KEY", ""),
+    # Gold Price API settings
+    "rapidapi_key": os.getenv("RAPIDAPI_KEY", ""),
+    "gold_api": {
+        "base_url": "https://gold-price-api.p.rapidapi.com/v1",
+        "history_endpoint": "/gold/history",
+        "current_endpoint": "/gold/current",
+        "rate_limit": 100,  # requests per hour
+        "timeout": 30  # seconds
+    },
     # Debate and discussion settings
     "max_debate_rounds": 1,
     "max_risk_discuss_rounds": 1,
