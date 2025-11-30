@@ -8,11 +8,6 @@ import time
 from .config import DATA_DIR
 
 
-class GoldPriceAPIError(Exception):
-    """Custom exception for Gold Price API errors"""
-    pass
-
-
 class GoldPriceAPI:
     """Gold Price API utilities for gold trading data"""
     
@@ -47,31 +42,20 @@ class GoldPriceAPI:
             response = self.session.get(url, params=params)
             self.last_request_time = time.time()
             
-            # Handle rate limiting explicitly
             if response.status_code == 429:
-                raise GoldPriceAPIError("Gold price API rate limit exceeded. Please try again later.")
-            
-            # Handle other HTTP errors
-            if response.status_code == 401:
-                raise GoldPriceAPIError("Invalid API key for gold price service.")
-            elif response.status_code == 403:
-                raise GoldPriceAPIError("Access forbidden to gold price API.")
-            elif response.status_code == 404:
-                raise GoldPriceAPIError("Gold price API endpoint not found.")
-            elif response.status_code >= 500:
-                raise GoldPriceAPIError("Gold price service temporarily unavailable.")
+                print("Rate limit exceeded. Waiting before retry...")
+                time.sleep(5)
+                response = self.session.get(url, params=params)
             
             response.raise_for_status()
             return response.json()
             
-        except requests.exceptions.Timeout:
-            raise GoldPriceAPIError("Request to gold price API timed out.")
-        except requests.exceptions.ConnectionError:
-            raise GoldPriceAPIError("Unable to connect to gold price service. Check your internet connection.")
         except requests.exceptions.RequestException as e:
-            raise GoldPriceAPIError(f"Network error accessing gold price API: {str(e)}")
-        except json.JSONDecodeError:
-            raise GoldPriceAPIError("Invalid response format from gold price API.")
+            print(f"Error making request to {url}: {e}")
+            return {}
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON response: {e}")
+            return {}
     
     def get_gold_history(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict:
         """
@@ -83,9 +67,6 @@ class GoldPriceAPI:
         
         Returns:
             Dict containing gold price history with OHLCV data
-        
-        Raises:
-            GoldPriceAPIError: If API request fails
         """
         params = {}
         if start_date:
@@ -101,9 +82,6 @@ class GoldPriceAPI:
         
         Returns:
             Dict containing current gold price information
-        
-        Raises:
-            GoldPriceAPIError: If API request fails
         """
         # Use history endpoint to get current data since /gold/current doesn't exist
         return self._make_request("/gold/history")
@@ -117,12 +95,10 @@ class GoldPriceAPI:
         
         Returns:
             DataFrame with columns: date, open, high, low, close, volume
-        
-        Raises:
-            GoldPriceAPIError: If data parsing fails or data is invalid
         """
         if not api_response:
-            raise GoldPriceAPIError("No response received from gold price API.")
+            print("❌ No API response received")
+            return pd.DataFrame()
         
         # Handle different API response formats
         if 'history' in api_response:
@@ -135,10 +111,12 @@ class GoldPriceAPI:
             # Direct list format
             history_data = api_response
         else:
-            raise GoldPriceAPIError(f"Unknown API response format: {list(api_response.keys()) if isinstance(api_response, dict) else type(api_response)}")
+            print(f"❌ Unknown API response format: {list(api_response.keys()) if isinstance(api_response, dict) else type(api_response)}")
+            return pd.DataFrame()
         
         if not history_data:
-            raise GoldPriceAPIError("No price history data found in API response.")
+            print("❌ No history data found in API response")
+            return pd.DataFrame()
         
         # Convert to DataFrame
         df = pd.DataFrame(history_data)
@@ -147,7 +125,9 @@ class GoldPriceAPI:
         required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            raise GoldPriceAPIError(f"Missing required columns in API response: {missing_columns}. Available columns: {list(df.columns)}")
+            print(f"❌ Missing required columns: {missing_columns}")
+            print(f"Available columns: {list(df.columns)}")
+            return pd.DataFrame()
         
         # Ensure proper data types
         df['date'] = pd.to_datetime(df['date'])
@@ -155,13 +135,6 @@ class GoldPriceAPI:
         for col in numeric_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        # Check for invalid data (zeros or NaN values)
-        if (df[['open', 'high', 'low', 'close']] == 0).any().any():
-            raise GoldPriceAPIError("Invalid price data detected (zero values) in API response.")
-        
-        if df[['open', 'high', 'low', 'close']].isnull().any().any():
-            raise GoldPriceAPIError("Missing price data (null values) in API response.")
         
         # Sort by date
         df = df.sort_values('date').reset_index(drop=True)
@@ -296,7 +269,12 @@ def get_gold_price_data(
         api = GoldPriceAPI()
         raw_data = api.get_gold_history(start_date, end_date)
         
+        if not raw_data:
+            return f"No gold price data available for {symbol} from {start_date} to {end_date}"
+        
         df = api.parse_gold_data(raw_data)
+        if df.empty:
+            return f"No valid gold price data found for {symbol}"
         
         # Format the data for output
         result_str = f"## {symbol.upper()} Gold Price Data from {start_date} to {end_date}:\n\n"
@@ -323,8 +301,6 @@ def get_gold_price_data(
         
         return result_str
         
-    except GoldPriceAPIError as e:
-        return f"Gold Price API Error: {str(e)}"
     except Exception as e:
         return f"Error retrieving gold price data for {symbol}: {str(e)}"
 
@@ -355,7 +331,12 @@ def get_gold_technical_analysis(
         
         # Get data
         raw_data = api.get_gold_history(start_date_str, curr_date)
+        if not raw_data:
+            return f"No technical data available for {symbol}"
+        
         df = api.parse_gold_data(raw_data)
+        if df.empty:
+            return f"No valid gold data found for {symbol}"
         
         # Calculate technical indicators
         df = api.calculate_technical_indicators(df)
@@ -411,7 +392,5 @@ def get_gold_technical_analysis(
         
         return result_str
         
-    except GoldPriceAPIError as e:
-        return f"Gold Price API Error: {str(e)}"
     except Exception as e:
         return f"Error retrieving technical analysis for {symbol}: {str(e)}"
