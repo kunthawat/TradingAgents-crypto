@@ -178,6 +178,8 @@ class TradingAgentsGraph:
                     self.toolkit.get_reddit_stock_info,
                     # Crypto tools
                     self.toolkit.get_crypto_news_analysis,
+                    # Gold tools
+                    self.toolkit.get_gold_news_analysis,
                 ]
             ),
             "news": ToolNode(
@@ -190,6 +192,8 @@ class TradingAgentsGraph:
                     self.toolkit.get_reddit_news,
                     # Crypto tools
                     self.toolkit.get_crypto_news_analysis,
+                    # Gold tools
+                    self.toolkit.get_gold_news_analysis,
                 ]
             ),
             "fundamentals": ToolNode(
@@ -205,6 +209,9 @@ class TradingAgentsGraph:
                     # Crypto tools
                     self.toolkit.get_crypto_fundamentals_analysis,
                     self.toolkit.get_crypto_market_analysis,
+                    # Gold tools
+                    self.toolkit.get_gold_fundamentals_analysis,
+                    self.toolkit.get_gold_market_analysis,
                 ]
             ),
         }
