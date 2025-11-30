@@ -95,15 +95,38 @@ class GoldPriceAPI:
         Returns:
             DataFrame with columns: date, open, high, low, close, volume
         """
-        if not api_response or 'history' not in api_response:
+        if not api_response:
+            print("❌ No API response received")
             return pd.DataFrame()
         
-        history_data = api_response['history']
+        # Handle different API response formats
+        if 'history' in api_response:
+            # New API format: {"asset": "gold", "count": 22, "history": [...]}
+            history_data = api_response['history']
+        elif 'data' in api_response:
+            # Old API format: {"success": true, "data": [...]}
+            history_data = api_response['data']
+        elif isinstance(api_response, list):
+            # Direct list format
+            history_data = api_response
+        else:
+            print(f"❌ Unknown API response format: {list(api_response.keys()) if isinstance(api_response, dict) else type(api_response)}")
+            return pd.DataFrame()
+        
         if not history_data:
+            print("❌ No history data found in API response")
             return pd.DataFrame()
         
         # Convert to DataFrame
         df = pd.DataFrame(history_data)
+        
+        # Ensure required columns exist
+        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            print(f"❌ Missing required columns: {missing_columns}")
+            print(f"Available columns: {list(df.columns)}")
+            return pd.DataFrame()
         
         # Ensure proper data types
         df['date'] = pd.to_datetime(df['date'])
@@ -122,6 +145,7 @@ class GoldPriceAPI:
         df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3
         df['weighted_price'] = (df['high'] + df['low'] + 2 * df['close']) / 4
         
+        print(f"✅ Successfully parsed {len(df)} rows of gold data")
         return df
     
     def calculate_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
