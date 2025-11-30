@@ -78,12 +78,13 @@ class GoldPriceAPI:
     
     def get_current_gold_price(self) -> Dict:
         """
-        Get current gold price data
+        Get current gold price data (using history endpoint with recent data)
         
         Returns:
             Dict containing current gold price information
         """
-        return self._make_request("/gold/current")
+        # Use history endpoint to get current data since /gold/current doesn't exist
+        return self._make_request("/gold/history")
     
     def parse_gold_data(self, api_response: Dict) -> pd.DataFrame:
         """
