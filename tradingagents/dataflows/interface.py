@@ -1156,34 +1156,55 @@ def get_gold_fundamentals_analysis(
 
 def detect_asset_type(symbol: str) -> str:
     """
-    Detect whether a symbol is crypto, gold, or unknown
-    
-    Args:
-        symbol: Trading symbol
-    
-    Returns:
-        String indicating asset type: 'crypto', 'gold', or 'unknown'
+    Detect if a symbol is crypto, gold, or stock
+    Returns: 'crypto', 'gold', or 'stock'
     """
+    # Gold symbols - ALWAYS prioritize gold over crypto
+    gold_symbols = {'GOLD', 'XAU', 'XAUUSD', 'GOLD/USD', 'GC=F'}
+    
+    # Known crypto symbols (most common ones)
+    crypto_symbols = {
+        'BTC', 'ETH', 'ADA', 'SOL', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'AAVE',
+        'XRP', 'LTC', 'BCH', 'EOS', 'TRX', 'XLM', 'VET', 'ALGO', 'ATOM', 'LUNA',
+        'NEAR', 'FTM', 'CRO', 'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'CHZ', 'BAT',
+        'ZEC', 'DASH', 'XMR', 'DOGE', 'SHIB', 'PEPE', 'FLOKI', 'BNB', 'USDT', 'USDC',
+        'TON', 'ICP', 'HBAR', 'THETA', 'FIL', 'ETC', 'MKR', 'APT', 'LDO', 'OP',
+        'IMX', 'GRT', 'RUNE', 'FLOW', 'EGLD', 'XTZ', 'MINA', 'ROSE', 'KAVA'
+    }
+    
+    # Known stock symbols (to avoid false positives)
+    stock_symbols = {
+        'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'DIS', 'AMD',
+        'INTC', 'CRM', 'ORCL', 'ADBE', 'CSCO', 'PEP', 'KO', 'WMT', 'JNJ', 'PFE',
+        'V', 'MA', 'HD', 'UNH', 'BAC', 'XOM', 'CVX', 'LLY', 'ABBV', 'COST',
+        'AVGO', 'TMO', 'ACN', 'DHR', 'TXN', 'LOW', 'QCOM', 'HON', 'UPS', 'MDT'
+    }
+    
     symbol_upper = symbol.upper()
     
-    # Gold symbols
-    gold_symbols = ['GOLD', 'XAU', 'XAUUSD', 'GOLD/USD', 'GC=F']
+    # Check for gold FIRST - this has highest priority
     if symbol_upper in gold_symbols:
         return 'gold'
     
-    # Major crypto symbols (from coingecko_utils)
-    crypto_symbols = [
-        'BTC', 'ETH', 'ADA', 'SOL', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'AAVE',
-        'XRP', 'LTC', 'BCH', 'EOS', 'TRX', 'XLM', 'VET', 'ALGO', 'ATOM', 'NEAR',
-        'FTM', 'CRO', 'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'CHZ', 'BAT', 'ZEC',
-        'DASH', 'XMR', 'DOGE', 'SHIB', 'BNB', 'USDT', 'USDC', 'TON', 'ICP',
-        'HBAR', 'THETA', 'FIL', 'ETC', 'MKR', 'APT', 'LDO', 'OP'
-    ]
+    # If it's a known stock symbol, it's definitely stock
+    if symbol_upper in stock_symbols:
+        return 'stock'
     
+    # If it's a known crypto symbol, it's definitely crypto
     if symbol_upper in crypto_symbols:
         return 'crypto'
     
-    return 'unknown'
+    # For unknown symbols, be conservative and assume it's a stock
+    # unless it has typical crypto characteristics
+    if len(symbol) >= 5:  # Most stocks are 4+ characters
+        return 'stock'
+    
+    # Short symbols (2-4 chars) could be crypto if they don't look like stocks
+    if len(symbol) <= 4 and symbol.isalnum() and not any(c in symbol for c in ['.', '-', '_']):
+        # Additional heuristic: crypto symbols often have certain patterns
+        return 'crypto'
+    
+    return 'stock'
 
 
 def get_asset_data(

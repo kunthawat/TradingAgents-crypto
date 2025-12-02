@@ -3,11 +3,14 @@ import time
 import json
 
 
-def _is_crypto_symbol(symbol: str) -> bool:
+def _detect_asset_type(symbol: str) -> str:
     """
-    Detect if a symbol is likely a cryptocurrency
-    Uses a whitelist approach for known crypto symbols and excludes known stock patterns
+    Detect if a symbol is crypto, gold, or stock
+    Returns: 'crypto', 'gold', or 'stock'
     """
+    # Gold symbols - ALWAYS prioritize gold over crypto
+    gold_symbols = {'GOLD', 'XAU', 'XAUUSD', 'GOLD/USD', 'GC=F'}
+    
     # Known crypto symbols (most common ones)
     crypto_symbols = {
         'BTC', 'ETH', 'ADA', 'SOL', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'AAVE',
@@ -28,25 +31,34 @@ def _is_crypto_symbol(symbol: str) -> bool:
     
     symbol_upper = symbol.upper()
     
-    # If it's a known stock symbol, it's definitely not crypto
+    # Check for gold FIRST - this has highest priority
+    if symbol_upper in gold_symbols:
+        return 'gold'
+    
+    # If it's a known stock symbol, it's definitely stock
     if symbol_upper in stock_symbols:
-        return False
+        return 'stock'
     
     # If it's a known crypto symbol, it's definitely crypto
     if symbol_upper in crypto_symbols:
-        return True
+        return 'crypto'
     
     # For unknown symbols, be conservative and assume it's a stock
     # unless it has typical crypto characteristics
     if len(symbol) >= 5:  # Most stocks are 4+ characters
-        return False
+        return 'stock'
     
     # Short symbols (2-4 chars) could be crypto if they don't look like stocks
     if len(symbol) <= 4 and symbol.isalnum() and not any(c in symbol for c in ['.', '-', '_']):
         # Additional heuristic: crypto symbols often have certain patterns
-        return True
+        return 'crypto'
     
-    return False
+    return 'stock'
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    """Legacy function for backward compatibility"""
+    return _detect_asset_type(symbol) == 'crypto'
 
 
 def create_fundamentals_analyst(llm, toolkit, language_prompt=""):
@@ -55,10 +67,10 @@ def create_fundamentals_analyst(llm, toolkit, language_prompt=""):
         ticker = state["company_of_interest"]
         company_name = state["company_of_interest"]
 
-        # Check if we're dealing with crypto or stocks
-        is_crypto = _is_crypto_symbol(ticker)
+        # Check if we're dealing with crypto, gold, or stocks
+        asset_type = _detect_asset_type(ticker)
         
-        if is_crypto:
+        if asset_type == 'crypto':
             # Use crypto-specific tools
             tools = [toolkit.get_crypto_fundamentals_analysis, toolkit.get_crypto_market_analysis]
             
@@ -69,6 +81,19 @@ def create_fundamentals_analyst(llm, toolkit, language_prompt=""):
 You are a cryptocurrency fundamental analyst tasked with analyzing fundamental information about a cryptocurrency. Please write a comprehensive report of the cryptocurrency's fundamental information such as market capitalization, supply mechanics, token economics, network metrics, adoption indicators, and market positioning to gain a full view of the cryptocurrency's fundamental value proposition to inform traders. 
 Focus on crypto-specific metrics like: market cap rank, circulating vs total supply, trading volume patterns, network activity, developer ecosystem, regulatory environment, community strength, and technology fundamentals. 
 Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help crypto traders make decisions."""
+                + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read.",
+            )
+        elif asset_type == 'gold':
+            # Use gold-specific tools
+            tools = [toolkit.get_gold_fundamentals_analysis, toolkit.get_gold_market_analysis]
+            
+            system_message = (
+                language_prompt +
+                """ 
+
+You are a gold fundamental analyst tasked with analyzing fundamental information about gold as a commodity and investment asset. Please write a comprehensive report of gold's fundamental information such as supply and demand dynamics, macroeconomic relationships, market structure, and investment characteristics to gain a full view of gold's fundamental value proposition to inform traders. 
+Focus on gold-specific fundamentals like: mining production and costs, central bank reserves and activities, jewelry and industrial demand, ETF flows and investment demand, inflation correlations, interest rate sensitivity, currency relationships, geopolitical factors, and seasonal patterns. 
+Make sure to include as much detail as possible. Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help gold traders make decisions."""
                 + " Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read.",
             )
         else:

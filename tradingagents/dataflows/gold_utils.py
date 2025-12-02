@@ -381,8 +381,8 @@ class GoldPriceAPI:
         if df[['open', 'high', 'low', 'close']].isnull().any().any():
             raise GoldPriceAPIError("Missing price data (null values) in FCSAPI response.")
         
-        # Sort by date
-        df = df.sort_values('date').reset_index(drop=True)
+        # Sort by date descending (newest first) to fix the date ordering issue
+        df = df.sort_values('date', ascending=False).reset_index(drop=True)
         
         # Calculate additional metrics with real OHLCV data
         df['price_range'] = df['high'] - df['low']  # Real price range

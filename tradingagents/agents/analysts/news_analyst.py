@@ -3,11 +3,14 @@ import time
 import json
 
 
-def _is_crypto_symbol(symbol: str) -> bool:
+def _detect_asset_type(symbol: str) -> str:
     """
-    Detect if a symbol is likely a cryptocurrency
-    Uses a whitelist approach for known crypto symbols and excludes known stock patterns
+    Detect if a symbol is crypto, gold, or stock
+    Returns: 'crypto', 'gold', or 'stock'
     """
+    # Gold symbols - ALWAYS prioritize gold over crypto
+    gold_symbols = {'GOLD', 'XAU', 'XAUUSD', 'GOLD/USD', 'GC=F'}
+    
     # Known crypto symbols (most common ones)
     crypto_symbols = {
         'BTC', 'ETH', 'ADA', 'SOL', 'DOT', 'AVAX', 'MATIC', 'LINK', 'UNI', 'AAVE',
@@ -28,25 +31,34 @@ def _is_crypto_symbol(symbol: str) -> bool:
     
     symbol_upper = symbol.upper()
     
-    # If it's a known stock symbol, it's definitely not crypto
+    # Check for gold FIRST - this has highest priority
+    if symbol_upper in gold_symbols:
+        return 'gold'
+    
+    # If it's a known stock symbol, it's definitely stock
     if symbol_upper in stock_symbols:
-        return False
+        return 'stock'
     
     # If it's a known crypto symbol, it's definitely crypto
     if symbol_upper in crypto_symbols:
-        return True
+        return 'crypto'
     
     # For unknown symbols, be conservative and assume it's a stock
     # unless it has typical crypto characteristics
     if len(symbol) >= 5:  # Most stocks are 4+ characters
-        return False
+        return 'stock'
     
     # Short symbols (2-4 chars) could be crypto if they don't look like stocks
     if len(symbol) <= 4 and symbol.isalnum() and not any(c in symbol for c in ['.', '-', '_']):
         # Additional heuristic: crypto symbols often have certain patterns
-        return True
+        return 'crypto'
     
-    return False
+    return 'stock'
+
+
+def _is_crypto_symbol(symbol: str) -> bool:
+    """Legacy function for backward compatibility"""
+    return _detect_asset_type(symbol) == 'crypto'
 
 
 def create_news_analyst(llm, toolkit, language_prompt=""):
@@ -54,10 +66,10 @@ def create_news_analyst(llm, toolkit, language_prompt=""):
         current_date = state["trade_date"]
         ticker = state["company_of_interest"]
 
-        # Check if we're dealing with crypto or stocks
-        is_crypto = _is_crypto_symbol(ticker)
+        # Check if we're dealing with crypto, gold, or stocks
+        asset_type = _detect_asset_type(ticker)
         
-        if is_crypto:
+        if asset_type == 'crypto':
             # Use crypto-specific tools
             tools = [toolkit.get_crypto_news_analysis, toolkit.get_google_news]
             
@@ -69,6 +81,20 @@ You are a cryptocurrency news researcher tasked with analyzing recent news and t
 Focus on crypto-specific news including: regulatory developments, institutional adoption, technology updates, market sentiment, DeFi trends, NFT markets, blockchain developments, and major crypto exchange news. 
 Also consider traditional macroeconomic factors that impact crypto markets such as inflation, monetary policy, global economic uncertainty, and traditional market trends. 
 Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help crypto traders make decisions."""
+                + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
+            )
+        elif asset_type == 'gold':
+            # Use gold-specific tools
+            tools = [toolkit.get_gold_news_analysis, toolkit.get_google_news]
+            
+            system_message = (
+                language_prompt +
+                """ 
+
+You are a gold market news researcher tasked with analyzing recent news and trends over the past week that affect gold markets. Please write a comprehensive report of the current state of the gold market and broader macroeconomic factors that are relevant for gold trading. 
+Focus on gold-specific news including: inflation data, monetary policy decisions, central bank activities, currency movements, geopolitical tensions, economic uncertainty, mining supply dynamics, jewelry demand, ETF flows, and precious metals market developments. 
+Also consider traditional macroeconomic factors that impact gold prices such as interest rates, dollar strength, inflation expectations, and global economic stability. 
+Do not simply state the trends are mixed, provide detailed and fine-grained analysis and insights that may help gold traders make decisions."""
                 + """ Make sure to append a Markdown table at the end of the report to organize key points in the report, organized and easy to read."""
             )
         else:
