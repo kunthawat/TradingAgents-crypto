@@ -63,8 +63,8 @@ class GoldPriceAPI:
         """Store data in cache"""
         self._cache[cache_key] = (data, time.time())
     
-    def _get_fcsapi_data(self, force_refresh: bool = False) -> Dict:
-        """Get the 300-candle dataset from FCSAPI with caching"""
+    def _get_fcsapi_data(self, force_refresh: bool = False, max_retries: int = 3) -> Dict:
+        """Get the 300-candle dataset from FCSAPI with caching and robust rate limit handling"""
         current_time = time.time()
         
         # Check if we have fresh cached data
@@ -72,14 +72,7 @@ class GoldPriceAPI:
             print(f"📋 Using cached FCSAPI data ({len(self._cached_data.get('response', {}))} candles)")
             return self._cached_data
         
-        # Rate limiting
-        time_since_last = current_time - self.last_request_time
-        if time_since_last < self.min_request_interval:
-            sleep_time = self.min_request_interval - time_since_last
-            print(f"⏳ Rate limiting: waiting {sleep_time:.1f} seconds...")
-            time.sleep(sleep_time)
-        
-        # Make API request to FCSAPI
+        # Make API request to FCSAPI with retry logic
         params = {
             'id': '1984',
             'period': '1d',
@@ -88,49 +81,98 @@ class GoldPriceAPI:
         
         url = f"{self.base_url}/history"
         
-        try:
-            response = self.session.get(url, params=params)
-            self.last_request_time = time.time()
-            
-            # Handle HTTP errors
-            if response.status_code == 401:
-                raise GoldPriceAPIError("Invalid GOLDAPI_KEY for FCSAPI service.")
-            elif response.status_code == 403:
-                raise GoldPriceAPIError("Access forbidden to FCSAPI.")
-            elif response.status_code == 429:
-                raise GoldPriceAPIError("FCSAPI rate limit exceeded. Please try again later.")
-            elif response.status_code >= 500:
-                raise GoldPriceAPIError("FCSAPI service temporarily unavailable.")
-            
-            response.raise_for_status()
-            data = response.json()
-            
-            # Check FCSAPI response status
-            if not data.get('status', False):
-                error_msg = data.get('msg', 'Unknown FCSAPI error')
-                raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
-            
-            if data.get('code') != 200:
-                error_msg = data.get('msg', f"FCSAPI returned code {data.get('code')}")
-                raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
-            
-            # Cache the data
-            self._cached_data = data
-            self._cache_timestamp = current_time
-            
-            candle_count = len(data.get('response', {}))
-            print(f"✅ Retrieved {candle_count} candles from FCSAPI")
-            
-            return data
-            
-        except requests.exceptions.Timeout:
-            raise GoldPriceAPIError("Request to FCSAPI timed out.")
-        except requests.exceptions.ConnectionError:
-            raise GoldPriceAPIError("Unable to connect to FCSAPI. Check your internet connection.")
-        except requests.exceptions.RequestException as e:
-            raise GoldPriceAPIError(f"Network error accessing FCSAPI: {str(e)}")
-        except json.JSONDecodeError:
-            raise GoldPriceAPIError("Invalid response format from FCSAPI.")
+        for attempt in range(max_retries):
+            try:
+                # Rate limiting between attempts
+                time_since_last = current_time - self.last_request_time
+                if time_since_last < self.min_request_interval:
+                    sleep_time = self.min_request_interval - time_since_last
+                    print(f"⏳ Rate limiting: waiting {sleep_time:.1f} seconds...")
+                    time.sleep(sleep_time)
+                
+                print(f"🔄 Attempt {attempt + 1}/{max_retries} to fetch FCSAPI data...")
+                response = self.session.get(url, params=params, timeout=30)
+                self.last_request_time = time.time()
+                
+                # Handle HTTP errors
+                if response.status_code == 401:
+                    raise GoldPriceAPIError("Invalid GOLDAPI_KEY for FCSAPI service.")
+                elif response.status_code == 403:
+                    raise GoldPriceAPIError("Access forbidden to FCSAPI.")
+                elif response.status_code == 429:
+                    print(f"⚠️  HTTP 429: Rate limit exceeded. Waiting 65 seconds...")
+                    time.sleep(65)
+                    continue
+                elif response.status_code >= 500:
+                    print(f"⚠️  Server error {response.status_code}. Retrying in 10 seconds...")
+                    time.sleep(10)
+                    continue
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                # Check for FCSAPI rate limit error in response body
+                response_text = response.text.lower()
+                if "access block for you" in response_text or "reached maximum" in response_text:
+                    wait_time = 65  # FCSAPI rate limit resets after 1 minute
+                    print(f"⚠️  FCSAPI Rate Limit Detected:")
+                    print(f"   Message: Access block for you, You have reached maximum 3 limit per minute")
+                    print(f"   Action: Waiting {wait_time} seconds for rate limit reset...")
+                    
+                    # Progress bar for waiting
+                    for i in range(wait_time, 0, -1):
+                        print(f"⏳ Rate limit reset in: {i} seconds...", end='\r')
+                        time.sleep(1)
+                    print("\n✅ Rate limit reset period complete. Retrying...")
+                    continue
+                
+                # Check FCSAPI response status
+                if not data.get('status', False):
+                    error_msg = data.get('msg', 'Unknown FCSAPI error')
+                    if "limit" in error_msg.lower() or "access" in error_msg.lower():
+                        print(f"⚠️  FCSAPI Limit Error: {error_msg}")
+                        print("   Waiting 65 seconds for potential rate limit reset...")
+                        time.sleep(65)
+                        continue
+                    raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
+                
+                if data.get('code') != 200:
+                    error_msg = data.get('msg', f"FCSAPI returned code {data.get('code')}")
+                    if "limit" in error_msg.lower() or "access" in error_msg.lower():
+                        print(f"⚠️  FCSAPI Limit Error: {error_msg}")
+                        print("   Waiting 65 seconds for potential rate limit reset...")
+                        time.sleep(65)
+                        continue
+                    raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
+                
+                # Success! Cache the data
+                self._cached_data = data
+                self._cache_timestamp = current_time
+                
+                candle_count = len(data.get('response', {}))
+                print(f"✅ Retrieved {candle_count} candles from FCSAPI")
+                
+                return data
+                
+            except requests.exceptions.Timeout:
+                print(f"⚠️  Request timeout on attempt {attempt + 1}. Retrying in 10 seconds...")
+                time.sleep(10)
+                continue
+            except requests.exceptions.ConnectionError:
+                print(f"⚠️  Connection error on attempt {attempt + 1}. Retrying in 10 seconds...")
+                time.sleep(10)
+                continue
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️  Network error on attempt {attempt + 1}: {str(e)}. Retrying in 10 seconds...")
+                time.sleep(10)
+                continue
+            except json.JSONDecodeError:
+                print(f"⚠️  Invalid JSON response on attempt {attempt + 1}. Retrying in 10 seconds...")
+                time.sleep(10)
+                continue
+        
+        # If we get here, all retries failed
+        raise GoldPriceAPIError(f"Failed to retrieve data from FCSAPI after {max_retries} attempts. The service may be temporarily unavailable or rate limited.")
     
     def get_current_gold_price(self) -> Dict:
         """
@@ -525,6 +567,20 @@ def get_gold_technical_analysis(
     """
     try:
         api = GoldPriceAPI()
+        
+        # Robust parameter conversion with debugging
+        try:
+            original_look_back = look_back_days
+            look_back_days = int(look_back_days)
+            print(f"DEBUG: Converted look_back_days from {type(original_look_back)} ({original_look_back}) to {type(look_back_days)} ({look_back_days})")
+        except (ValueError, TypeError) as e:
+            print(f"DEBUG: Failed to convert look_back_days '{look_back_days}' to int: {e}. Using default 30.")
+            look_back_days = 30
+        
+        # Validate range
+        if look_back_days < 1 or look_back_days > 365:
+            print(f"DEBUG: look_back_days {look_back_days} out of range. Using default 30.")
+            look_back_days = 30
         
         # Calculate start date
         end_date = datetime.strptime(curr_date, "%Y-%m-%d")

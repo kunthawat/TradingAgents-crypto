@@ -1059,6 +1059,20 @@ def get_gold_technical_analysis(
     """
     from datetime import datetime, timedelta
     
+    # Robust parameter conversion with debugging
+    try:
+        original_look_back = look_back_days
+        look_back_days = int(look_back_days)
+        print(f"DEBUG: Converted look_back_days from {type(original_look_back)} ({original_look_back}) to {type(look_back_days)} ({look_back_days})")
+    except (ValueError, TypeError) as e:
+        print(f"DEBUG: Failed to convert look_back_days '{look_back_days}' to int: {e}. Using default 30.")
+        look_back_days = 30
+    
+    # Validate range
+    if look_back_days < 1 or look_back_days > 365:
+        print(f"DEBUG: look_back_days {look_back_days} out of range. Using default 30.")
+        look_back_days = 30
+    
     curr_date_obj = datetime.strptime(curr_date, "%Y-%m-%d")
     start_date_obj = curr_date_obj - timedelta(days=look_back_days)
     start_date = start_date_obj.strftime("%Y-%m-%d")
