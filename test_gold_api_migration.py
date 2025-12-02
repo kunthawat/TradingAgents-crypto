@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to verify gold-api.com migration works correctly
+Test script to verify FCSAPI migration works correctly
 """
 
 import os

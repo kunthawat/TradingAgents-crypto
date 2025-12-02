@@ -14,27 +14,26 @@ class GoldPriceAPIError(Exception):
 
 
 class GoldPriceAPI:
-    """Gold Price API utilities for gold trading data - migrated to gold-api.com"""
+    """Gold Price API utilities for gold trading data - migrated to FCSAPI"""
     
     def __init__(self, api_key: Optional[str] = None):
-        self.base_url = "https://api.gold-api.com"
+        self.base_url = "https://fcsapi.com/api-v3/forex"
         self.api_key = api_key or os.getenv("GOLDAPI_KEY")
         self.session = requests.Session()
         
         if not self.api_key:
             raise ValueError("GOLDAPI_KEY environment variable is required for Gold Price API")
         
-        self.session.headers.update({
-            'x-api-key': self.api_key
-        })
-        
-        # Rate limiting - new API has 10 requests/hour limit for free tier
+        # FCSAPI uses access_key parameter, not header
+        # Rate limiting - FCSAPI may have different limits
         self.last_request_time = 0
-        self.min_request_interval = 360.0  # 6 minutes between requests (10/hour)
+        self.min_request_interval = 60.0  # 1 minute between requests (conservative)
         
-        # Cache for rate limiting
+        # Cache for the 300-candle dataset
         self._cache = {}
-        self._cache_ttl = 3600  # 1 hour cache
+        self._cache_ttl = 1800  # 30 minutes cache for 300-candle dataset
+        self._cached_data = None
+        self._cache_timestamp = 0
     
     def _date_to_timestamp(self, date_str: str) -> int:
         """Convert date string to Unix timestamp"""
@@ -64,65 +63,78 @@ class GoldPriceAPI:
         """Store data in cache"""
         self._cache[cache_key] = (data, time.time())
     
-    def _make_request(self, endpoint: str, params: Dict = None, use_cache: bool = True) -> Dict:
-        """Make API request with error handling, rate limiting, and caching"""
-        # Check cache first
-        if use_cache:
-            cache_key = self._get_cache_key(endpoint, params)
-            cached_data = self._get_from_cache(cache_key)
-            if cached_data:
-                print(f"📋 Using cached data for {endpoint}")
-                return cached_data
+    def _get_fcsapi_data(self, force_refresh: bool = False) -> Dict:
+        """Get the 300-candle dataset from FCSAPI with caching"""
+        current_time = time.time()
+        
+        # Check if we have fresh cached data
+        if not force_refresh and self._cached_data and (current_time - self._cache_timestamp < self._cache_ttl):
+            print(f"📋 Using cached FCSAPI data ({len(self._cached_data.get('response', {}))} candles)")
+            return self._cached_data
         
         # Rate limiting
-        current_time = time.time()
         time_since_last = current_time - self.last_request_time
         if time_since_last < self.min_request_interval:
             sleep_time = self.min_request_interval - time_since_last
             print(f"⏳ Rate limiting: waiting {sleep_time:.1f} seconds...")
             time.sleep(sleep_time)
         
-        url = f"{self.base_url}{endpoint}"
+        # Make API request to FCSAPI
+        params = {
+            'id': '1984',
+            'period': '1d',
+            'access_key': self.api_key
+        }
+        
+        url = f"{self.base_url}/history"
         
         try:
             response = self.session.get(url, params=params)
             self.last_request_time = time.time()
             
-            # Handle rate limiting explicitly
-            if response.status_code == 429:
-                raise GoldPriceAPIError("Gold price API rate limit exceeded. Please try again later.")
-            
-            # Handle other HTTP errors
+            # Handle HTTP errors
             if response.status_code == 401:
-                raise GoldPriceAPIError("Invalid API key for gold price service.")
+                raise GoldPriceAPIError("Invalid GOLDAPI_KEY for FCSAPI service.")
             elif response.status_code == 403:
-                raise GoldPriceAPIError("Access forbidden to gold price API.")
-            elif response.status_code == 404:
-                raise GoldPriceAPIError("Gold price API endpoint not found.")
+                raise GoldPriceAPIError("Access forbidden to FCSAPI.")
+            elif response.status_code == 429:
+                raise GoldPriceAPIError("FCSAPI rate limit exceeded. Please try again later.")
             elif response.status_code >= 500:
-                raise GoldPriceAPIError("Gold price service temporarily unavailable.")
+                raise GoldPriceAPIError("FCSAPI service temporarily unavailable.")
             
             response.raise_for_status()
             data = response.json()
             
-            # Store in cache
-            if use_cache:
-                self._store_in_cache(cache_key, data)
+            # Check FCSAPI response status
+            if not data.get('status', False):
+                error_msg = data.get('msg', 'Unknown FCSAPI error')
+                raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
+            
+            if data.get('code') != 200:
+                error_msg = data.get('msg', f"FCSAPI returned code {data.get('code')}")
+                raise GoldPriceAPIError(f"FCSAPI Error: {error_msg}")
+            
+            # Cache the data
+            self._cached_data = data
+            self._cache_timestamp = current_time
+            
+            candle_count = len(data.get('response', {}))
+            print(f"✅ Retrieved {candle_count} candles from FCSAPI")
             
             return data
             
         except requests.exceptions.Timeout:
-            raise GoldPriceAPIError("Request to gold price API timed out.")
+            raise GoldPriceAPIError("Request to FCSAPI timed out.")
         except requests.exceptions.ConnectionError:
-            raise GoldPriceAPIError("Unable to connect to gold price service. Check your internet connection.")
+            raise GoldPriceAPIError("Unable to connect to FCSAPI. Check your internet connection.")
         except requests.exceptions.RequestException as e:
-            raise GoldPriceAPIError(f"Network error accessing gold price API: {str(e)}")
+            raise GoldPriceAPIError(f"Network error accessing FCSAPI: {str(e)}")
         except json.JSONDecodeError:
-            raise GoldPriceAPIError("Invalid response format from gold price API.")
+            raise GoldPriceAPIError("Invalid response format from FCSAPI.")
     
     def get_current_gold_price(self) -> Dict:
         """
-        Get current gold price data
+        Get current gold price data (latest candle from FCSAPI)
         
         Returns:
             Dict containing current gold price information
@@ -130,18 +142,44 @@ class GoldPriceAPI:
         Raises:
             GoldPriceAPIError: If API request fails
         """
-        return self._make_request("/price/XAU")
+        # Get the full dataset from FCSAPI
+        fcsapi_data = self._get_fcsapi_data()
+        
+        # Extract the latest candle (highest timestamp)
+        response_data = fcsapi_data.get('response', {})
+        if not response_data:
+            raise GoldPriceAPIError("No data available from FCSAPI")
+        
+        # Find the candle with the highest timestamp
+        latest_timestamp = max(response_data.keys())
+        latest_candle = response_data[latest_timestamp]
+        
+        # Return in a format compatible with existing code
+        return {
+            'status': True,
+            'code': 200,
+            'msg': 'Successfully retrieved current price',
+            'data': {
+                'symbol': 'XAU/USD',
+                'price': float(latest_candle['c']),
+                'open': float(latest_candle['o']),
+                'high': float(latest_candle['h']),
+                'low': float(latest_candle['l']),
+                'timestamp': int(latest_timestamp),
+                'datetime': latest_candle['tm']
+            }
+        }
     
     def get_gold_history(self, start_date: Optional[str] = None, end_date: Optional[str] = None, 
                         group_by: str = "day", aggregation: str = "max") -> Dict:
         """
-        Get gold price history data
+        Get gold price history data (filtered from FCSAPI 300-candle dataset)
         
         Args:
             start_date: Start date in yyyy-mm-dd format (optional)
             end_date: End date in yyyy-mm-dd format (optional)
-            group_by: Time grouping - year, month, week, day (default: day)
-            aggregation: Price aggregation - max, min, avg (default: max)
+            group_by: Time grouping - year, month, week, day (default: day) - ignored for FCSAPI
+            aggregation: Price aggregation - max, min, avg (default: max) - ignored for FCSAPI
         
         Returns:
             Dict containing gold price history data
@@ -156,26 +194,60 @@ class GoldPriceAPI:
             start_date_obj = datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=30)
             start_date = start_date_obj.strftime("%Y-%m-%d")
         
-        # Convert dates to Unix timestamps
+        # Get the full dataset from FCSAPI
+        fcsapi_data = self._get_fcsapi_data()
+        response_data = fcsapi_data.get('response', {})
+        
+        if not response_data:
+            raise GoldPriceAPIError("No data available from FCSAPI")
+        
+        # Convert date strings to timestamps for filtering
         start_timestamp = self._date_to_timestamp(start_date)
-        end_timestamp = self._date_to_timestamp(end_date)
+        end_timestamp = self._date_to_timestamp(end_date) + 86400  # Add 1 day to include end date
         
-        params = {
-            'symbol': 'XAU',
-            'startTimestamp': start_timestamp,
-            'endTimestamp': end_timestamp,
-            'groupBy': group_by,
-            'aggregation': aggregation
+        # Filter candles within the requested date range
+        filtered_data = {}
+        for timestamp_str, candle_data in response_data.items():
+            candle_timestamp = int(timestamp_str)
+            if start_timestamp <= candle_timestamp <= end_timestamp:
+                filtered_data[timestamp_str] = candle_data
+        
+        if not filtered_data:
+            # Check if the requested range is too old
+            oldest_timestamp = min(response_data.keys())
+            oldest_date = datetime.fromtimestamp(int(oldest_timestamp)).strftime('%Y-%m-%d')
+            
+            if start_timestamp < int(oldest_timestamp):
+                raise GoldPriceAPIError(
+                    f"Requested start date {start_date} is older than available data. "
+                    f"FCSAPI only provides data from {oldest_date} (last 300 days)."
+                )
+            else:
+                raise GoldPriceAPIError(
+                    f"No data available for the requested date range {start_date} to {end_date}. "
+                    f"Available data covers the last 300 days."
+                )
+        
+        # Return in a format compatible with existing code
+        return {
+            'status': True,
+            'code': 200,
+            'msg': f'Successfully retrieved {len(filtered_data)} candles',
+            'data': filtered_data,
+            'info': fcsapi_data.get('info', {}),
+            'date_range': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'actual_candles': len(filtered_data)
+            }
         }
-        
-        return self._make_request("/history", params)
     
     def parse_gold_data(self, api_response: Dict) -> pd.DataFrame:
         """
-        Parse API response to pandas DataFrame for analysis
+        Parse FCSAPI response to pandas DataFrame for analysis
         
         Args:
-            api_response: Response from Gold Price API (new gold-api.com format)
+            api_response: Response from FCSAPI with filtered data
         
         Returns:
             DataFrame with columns: date, open, high, low, close, volume
@@ -184,83 +256,102 @@ class GoldPriceAPI:
             GoldPriceAPIError: If data parsing fails or data is invalid
         """
         if not api_response:
-            raise GoldPriceAPIError("No response received from gold price API.")
+            raise GoldPriceAPIError("No response received from FCSAPI.")
         
-        # Handle new gold-api.com response format
-        if isinstance(api_response, list):
-            # New API format: [{"day":"2025-12-01 00:00:00","max_price":"4255.6001"}, ...]
-            history_data = api_response
-        elif isinstance(api_response, dict):
-            # Current price format: {"name":"Gold","price":4235.700195,"symbol":"XAU","updatedAt":"..."}
-            if 'price' in api_response and 'name' in api_response:
-                # Convert single price response to DataFrame
-                current_time = datetime.now()
+        # Handle FCSAPI response format
+        if isinstance(api_response, dict):
+            # Check if it's our filtered response format
+            if 'data' in api_response and 'status' in api_response:
+                # Extract the candle data from our filtered response
+                history_data = api_response['data']
+            elif 'response' in api_response and 'status' in api_response:
+                # Direct FCSAPI response format
+                history_data = api_response['response']
+            elif 'price' in api_response and 'data' in api_response:
+                # Current price format from get_current_gold_price
+                current_data = api_response['data']
                 price_data = [{
-                    'date': current_time.strftime('%Y-%m-%d'),
-                    'max_price': str(api_response['price'])
+                    'date': pd.to_datetime(current_data['datetime']).date(),
+                    'open': float(current_data['open']),
+                    'high': float(current_data['high']),
+                    'low': float(current_data['low']),
+                    'close': float(current_data['price']),
+                    'volume': 0
                 }]
                 history_data = price_data
             else:
-                raise GoldPriceAPIError(f"Unknown API response format: {list(api_response.keys())}")
+                raise GoldPriceAPIError(f"Unknown FCSAPI response format: {list(api_response.keys())}")
         else:
-            raise GoldPriceAPIError(f"Unknown API response type: {type(api_response)}")
+            raise GoldPriceAPIError(f"Unknown FCSAPI response type: {type(api_response)}")
         
         if not history_data:
-            raise GoldPriceAPIError("No price history data found in API response.")
+            raise GoldPriceAPIError("No price history data found in FCSAPI response.")
+        
+        # Convert timestamp-keyed data to list format
+        if isinstance(history_data, dict):
+            candle_list = []
+            for timestamp_str, candle_data in history_data.items():
+                # Parse the datetime from FCSAPI format
+                datetime_str = candle_data.get('tm', '')
+                if datetime_str:
+                    date_obj = pd.to_datetime(datetime_str).date()
+                else:
+                    # Fallback: use timestamp
+                    date_obj = pd.to_datetime(int(timestamp_str), unit='s').date()
+                
+                # Parse OHLCV data
+                candle_list.append({
+                    'date': date_obj,
+                    'open': float(candle_data['o']),
+                    'high': float(candle_data['h']),
+                    'low': float(candle_data['l']),
+                    'close': float(candle_data['c']),
+                    'volume': float(candle_data['v']) if candle_data['v'] else 0.0
+                })
+        else:
+            # Already in list format
+            candle_list = history_data
+        
+        if not candle_list:
+            raise GoldPriceAPIError("No valid candle data found in FCSAPI response.")
         
         # Convert to DataFrame
-        df = pd.DataFrame(history_data)
+        df = pd.DataFrame(candle_list)
         
-        # Handle different column names from new API
-        if 'day' in df.columns:
-            df.rename(columns={'day': 'date'}, inplace=True)
-        
-        # Find the price column (could be max_price, min_price, avg_price)
-        price_column = None
-        for col in ['max_price', 'min_price', 'avg_price', 'price']:
-            if col in df.columns:
-                price_column = col
-                break
-        
-        if not price_column:
-            raise GoldPriceAPIError(f"No price column found in API response. Available columns: {list(df.columns)}")
+        # Ensure required columns exist
+        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        for col in required_columns:
+            if col not in df.columns:
+                raise GoldPriceAPIError(f"Missing required column '{col}' in FCSAPI response.")
         
         # Convert date column
         df['date'] = pd.to_datetime(df['date']).dt.date
         
-        # Convert price to numeric
-        df['price'] = pd.to_numeric(df[price_column], errors='coerce')
-        
-        # Create OHLCV structure from single price data
-        # Since new API only provides aggregated prices, use the same value for all OHLC
-        df['open'] = df['price']
-        df['high'] = df['price']
-        df['low'] = df['price']
-        df['close'] = df['price']
-        df['volume'] = 0  # New API doesn't provide volume data
-        
-        # Select and reorder columns
-        df = df[['date', 'open', 'high', 'low', 'close', 'volume']]
+        # Convert numeric columns
+        numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+        for col in numeric_columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
         
         # Check for invalid data
         if (df[['open', 'high', 'low', 'close']] == 0).any().any():
-            raise GoldPriceAPIError("Invalid price data detected (zero values) in API response.")
+            raise GoldPriceAPIError("Invalid price data detected (zero values) in FCSAPI response.")
         
         if df[['open', 'high', 'low', 'close']].isnull().any().any():
-            raise GoldPriceAPIError("Missing price data (null values) in API response.")
+            raise GoldPriceAPIError("Missing price data (null values) in FCSAPI response.")
         
         # Sort by date
         df = df.sort_values('date').reset_index(drop=True)
         
-        # Calculate additional metrics (adapted for single price data)
-        df['price_range'] = 0  # No range since all OHLC are the same
+        # Calculate additional metrics with real OHLCV data
+        df['price_range'] = df['high'] - df['low']  # Real price range
         df['daily_change'] = df['close'].diff()
         df['daily_change_pct'] = df['daily_change'].pct_change(fill_method=None) * 100
-        df['typical_price'] = df['close']  # Same as close since no OHLC variation
-        df['weighted_price'] = df['close']  # Same as close
+        df['typical_price'] = (df['high'] + df['low'] + df['close']) / 3
+        df['weighted_price'] = (df['high'] + df['low'] + 2 * df['close']) / 4
         
-        print(f"✅ Successfully parsed {len(df)} rows of gold data from gold-api.com")
-        print(f"⚠️  Note: Using aggregated price data for all OHLC values (API limitation)")
+        print(f"✅ Successfully parsed {len(df)} rows of gold data from FCSAPI")
+        print(f"🎯 Using real OHLCV data with price ranges and volume")
+        
         return df
     
     def calculate_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:

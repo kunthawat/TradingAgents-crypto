@@ -124,7 +124,7 @@ def main():
     print("\n" + "=" * 60)
     print("🎉 Gold trading functionality is fully operational!")
     print("✅ Market analyst correctly detects and handles gold")
-    print("✅ Gold data flows are working with gold-api.com")
+    print("✅ Gold data flows are working with FCSAPI")
     print("✅ Gold trading is ready for production use")
 
 if __name__ == "__main__":

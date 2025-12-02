@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete test of the gold API migration from RapidAPI to gold-api.com
+Complete test of the gold API migration from RapidAPI to FCSAPI
 This test focuses on the gold API functionality without LLM dependencies
 """
 
@@ -187,11 +187,11 @@ def test_api_comparison():
     print("=" * 40)
     
     try:
-        # Test new gold-api.com
+        # Test new FCSAPI
         gold_api = GoldPriceAPI()
         new_data = gold_api.get_gold_history(start_date="2025-11-26", end_date="2025-12-01")
         
-        print(f"New API (gold-api.com):")
+        print(f"New API (FCSAPI):")
         print(f"  - Data points: {len(new_data)}")
         if new_data:
             latest = new_data[-1]
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         test_api_comparison()
         
         print("\n📋 Migration Summary:")
-        print("✅ RapidAPI -> gold-api.com migration complete")
+        print("✅ RapidAPI -> FCSAPI migration complete")
         print("✅ RAPIDAPI_KEY -> GOLDAPI_KEY environment variable updated")
         print("✅ GoldPriceAPI class updated for new endpoint")
         print("✅ Data parsing updated for new response format")
@@ -233,6 +233,6 @@ if __name__ == "__main__":
         print("✅ Asset type detection working")
         print("✅ Tool binding working")
         
-        print("\n🚀 The gold trading system is now using gold-api.com!")
+        print("\n🚀 The gold trading system is now using FCSAPI!")
     else:
         print("\n❌ Migration tests failed. Please check the errors above.")

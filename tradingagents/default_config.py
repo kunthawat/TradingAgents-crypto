@@ -20,13 +20,16 @@ DEFAULT_CONFIG = {
     "embeddings_url": os.getenv("EMBEDDINGS_URL", "https://chutes-qwen-qwen3-embedding-8b.chutes.ai/v1/embeddings"),
     "api_key": os.getenv("OPENAI_API_KEY", ""),
     # Gold Price API settings
-    "rapidapi_key": os.getenv("RAPIDAPI_KEY", ""),
+    "goldapi_key": os.getenv("GOLDAPI_KEY", ""),
     "gold_api": {
-        "base_url": "https://gold-price-api.p.rapidapi.com/v1",
-        "history_endpoint": "/gold/history",
-        "current_endpoint": "/gold/current",
-        "rate_limit": 100,  # requests per hour
-        "timeout": 30  # seconds
+        "base_url": "https://fcsapi.com/api-v3/forex",
+        "history_endpoint": "/history",
+        "symbol_id": "1984",  # XAU/USD
+        "period": "1d",  # Daily candles
+        "max_candles": 300,  # FCSAPI provides last 300 candles
+        "rate_limit": 60,  # requests per hour (conservative estimate)
+        "timeout": 30,  # seconds
+        "cache_ttl": 1800  # 30 minutes cache for 300-candle dataset
     },
     # Debate and discussion settings
     "max_debate_rounds": 1,
